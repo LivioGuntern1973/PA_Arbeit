@@ -1,9 +1,13 @@
 #include "stm32f4xx_hal.h"
 
+void SysTick_Handler(void)
+{
+    HAL_IncTick();
+}
+
 int main(void)
 {
     HAL_Init();
-
     __HAL_RCC_GPIOA_CLK_ENABLE();
 
     GPIO_InitTypeDef gpio = {0};

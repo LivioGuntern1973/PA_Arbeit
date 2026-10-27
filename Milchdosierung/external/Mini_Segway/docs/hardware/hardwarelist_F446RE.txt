@@ -1,0 +1,48 @@
+Nucleo-F446RE
+- https://os.mbed.com/platforms/ST-Nucleo-F446RE/
+
+Pololu Dual MC33926 Motor Driver Shield for Arduino
+- https://www.play-zone.ch/en/pololu-dual-mc33926-motor-driver-shield-for-arduino.html
+
+2 x 47:1 Metal Gearmotor 25Dx67L mm MP 12V with 48 CPR Encoder
+- https://www.pololu.com/product/4865
+
+MPU6500 - 6DOF IMU
+- https://invensense.tdk.com/products/motion-tracking/6-axis/mpu-6500/
+- https://www.smart-prototyping.com/MPU6500-6DOF-Sensor-Breakout-Board
+- MPU-6500-Register-Map2.pdf
+- PS-MPU-6500A-01-v1.3.pdf
+- 1.71-3.45V
+
+OpenLager Blackbox
+- https://www.racedayquads.com/products/airbot-openlager-blackbox
+- 3.3-5.5V
+
+RP1 V2 ExpressLRS 2.4ghz Nano Receiver
+- https://www.radiomasterrc.com/products/rp1-expresslrs-2-4ghz-nano-receiver
+- 5V
+
+0,28" Mini Digital-Voltmeter mit LED Anzeige, 3,2-30V, 2-Wire, red
+- https://www.berrybase.ch/0-28-mini-digital-voltmeter-mit-led-anzeige-3-2-30v-2-wire-rot
+
+Pololu mini push-button switch with reverse polarity protection
+- https://www.pololu.com/product/2808
+
+3 x Mini Pushbutton Switch: PCB-Mount, 2-Pin, SPST, 50mA (5-Pack)
+- https://www.pololu.com/product/1400
+
+2 x LED diode
+
+2 x Conrad energy NiMH battery packs 6V, 2300mAh
+- https://www.conrad.ch/de/p/reely-modellbau-akkupack-nimh-6-v-2300-mah-zellen-zahl-5-mignon-aa-side-by-side-jr-buchse-2613252.html
+
+Jumper wires	
+
+GS-9018 Servo
+- http://www.goteckrc.com/ProductShow.asp?ID=10
+
+Micro BEC 6-30V to 5V/9V-ADJ
+- https://www.mateksys.com/?portfolio=mbec6s
+
+CADDXFPV Nebula Pro Vista Kit
+- https://caddxfpv.com/products/nebula-pro-vista-kit-720p-120fps-low-latency-hd-digital-fpv-system

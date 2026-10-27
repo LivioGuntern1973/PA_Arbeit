@@ -1,0 +1,152 @@
+clc, clear all
+addpath fcns\
+%%
+
+port = 'COM12';
+baudrate = 2e6;
+
+if (~exist('serialStream', 'var'))
+    serialStream = SerialStream(port, baudrate);
+else
+    serialStream.reset();
+end
+
+serialStream.start()
+while (serialStream.isBusy())
+    pause(0.1);
+end
+
+% access the data
+data = serialStream.getData();
+
+return
+
+
+%%
+
+
+multp_fig_nr = 1;
+
+% index
+ind.rc    = 1:5;
+ind.vel_M = 6:7;
+ind.ang_M = 8:9;
+ind.gyro  = 10:12;
+ind.acc   = 13:15;
+ind.rpy   = 16:18;
+ind.voltage_M = 19:20;
+ind.curr  = 21:22;
+ind.rob_pos = 23:24;
+ind.rob_vel = 25:26;
+ind.rob_vel_inp = 27:28;
+ind.rob_vel_sp  = 29:30;
+
+
+Ts = mean(diff(data.time));
+
+figure(expand_multiple_figure_nr(1, multp_fig_nr))
+
+plot(data.time(1:end-1), diff(data.time * 1e6)), grid on
+title( sprintf(['Mean %0.0f mus, ', ...
+                'Std. %0.0f mus, ', ...
+                'Med. dT = %0.0f mus'], ...
+                mean(diff(data.time * 1e6)), ...
+                std(diff(data.time * 1e6)), ...
+                median(diff(data.time * 1e6))) )
+xlabel('Time (sec)'), ylabel('dTime (mus)')
+xlim([0 data.time(end-1)])
+ylim([0 1.2*max(diff(data.time * 1e6))])
+
+
+figure(expand_multiple_figure_nr(2, multp_fig_nr))
+
+plot(data.time, data.values(:,ind.rc)), grid on
+ylabel('RC Data'), xlabel('Time (sec)')
+legend('Turn Rate', ...
+    'Forward Speed', ...
+    'Gimbal Angle Setpoint', ...
+    'Arming State', ...
+    'Scaled Period', ...
+    'Location', 'best')
+xlim([0 data.time(end)])
+ylim([-2 3])
+
+
+figure(expand_multiple_figure_nr(3, multp_fig_nr))
+
+ax(1) = subplot(311);
+plot(data.time, data.values(:,ind.voltage_M)), grid on
+ylabel('Voltage (V)')
+ax(2) = subplot(312);
+plot(data.time, data.values(:,ind.vel_M) / (2*pi)), grid on
+ylabel('Velocity (RPS)')
+ax(3) = subplot(313);
+plot(data.time, data.values(:,ind.ang_M) / (2*pi)), grid on
+ylabel('Rotation (ROT)'), xlabel('Time (sec)')
+legend('Motor 1', ...
+    'Motor 2', ...
+    'Location', 'best')
+linkaxes(ax, 'x'), clear ax
+xlim([0 data.time(end)])
+
+
+figure(expand_multiple_figure_nr(4, multp_fig_nr))
+
+ax(1) = subplot(221);
+plot(data.time, data.values(:,ind.gyro) * 180/pi), grid on
+ylabel('Gyro (deg/sec)')
+legend('Gyro X', ...
+       'Gyro Y', ...
+       'Gyro Z')
+ax(2) = subplot(222);
+plot(data.time, data.values(:,ind.acc) - 0*mean(data.values(:,ind.acc))), grid on
+ylabel('Acc (m^2/sec)')
+legend('Acc X', ...
+       'Acc Y', ...
+       'Acc Z')
+ax(3) = subplot(223);
+plot(data.time, [data.values(:,ind.rpy), ...
+                 0 *cumtrapz(data.time, data.values(:,ind.gyro))] * 180/pi), grid on
+ylabel('RPY (deg)')
+legend('Roll', ...
+       'Pitch', ...
+       'Yaw')
+ax(4) = subplot(224);
+plot(data.time(1:end-1), diff(data.values(:,ind.rpy)) / Ts * 180/pi), grid on
+ylabel('dRPY (deg)'), xlabel('Time (sec)')
+linkaxes(ax, 'x'), clear ax
+xlim([0 data.time(end)])
+legend('dRoll', ...
+       'dPitch', ...
+       'dYaw')
+
+
+figure(expand_multiple_figure_nr(5, multp_fig_nr))
+
+ax(1) = subplot(211);
+plot(data.time, data.values(:,ind.voltage_M)), grid on
+ylabel('Voltage (V)')
+ax(2) = subplot(212);
+plot(data.time, data.values(:,ind.curr)), grid on
+ylabel('Current (A)'), xlabel('Time (sec)')
+legend('Motor 1', ...
+    'Motor 2', ...
+    'Location', 'best')
+linkaxes(ax, 'x'), clear ax
+xlim([0 data.time(end)])
+
+
+figure(expand_multiple_figure_nr(6, multp_fig_nr))
+
+ax(1) = subplot(211);
+plot(data.time, data.values(:,[ind.rob_vel_sp(1), ind.rob_vel(1)])), grid on
+ylabel('Forward Speed (m/s)')
+ax(2) = subplot(212);
+plot(data.time, data.values(:,[ind.rob_vel_sp(2), ind.rob_vel(2)]) * 180/pi), grid on
+ylabel('Turn Rate (deg/sec)'), xlabel('Time (sec)')
+legend('Setpoint', ...
+    'Actual', ...
+    'Location', 'best')
+linkaxes(ax, 'x'), clear ax
+xlim([0 data.time(end)])
+

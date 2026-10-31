@@ -6,7 +6,7 @@
 // drivers
 #include "DebounceIn.h"
 #include "FastPWM.h"
-#include "DCMotor.h"
+#include "DCMotorOpenLoop.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -34,11 +34,6 @@ int main()
     // led on nucleo board
     DigitalOut user_led(LED1);
 
-    // additional led
-    // create DigitalOut object to command extra led, you need to add an additional resistor, e.g. 220...500 Ohm
-    // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via the resistor
-    DigitalOut led1(PB_9);
-
     // --- adding variables and objects and applying functions starts here ---
 
     // create object to enable power electronics for the dc motors
@@ -64,15 +59,17 @@ int main()
     // motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
     // motor M3
-    const float gear_ratio_M3 = 78.125f; // gear ratio
+    const float gear_ratio_M3 = 25.0f; // gear ratio
     const float kn_M3 = 180.0f / 12.0f;  // motor constant [rpm/V]
     // it is assumed that only one motor is available, therefore
     // we use the pins from M1, so you can leave it connected to M1
-    DCMotor motor_M3(PB_PWM_M1, PB_DIR_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M3, kn_M3, voltage_max);
+    DCMotorOpenLoop motor_M3(PB_PWM_M1, PB_DIR_M1,gear_ratio_M3, kn_M3, voltage_max);
     // enable the motion planner for smooth movement
     motor_M3.enableMotionPlanner();
     // limit max. velocity to half physical possible velocity
     motor_M3.setMaxVelocity(motor_M3.getMaxPhysicalVelocity() * 0.5f);
+    motor_M3.setMaxAcceleration(0.5f);
+    enable_motors = 1;
 
     // start timer
     main_task_timer.start();
@@ -87,15 +84,10 @@ int main()
 
             // --- code that runs when the blue button was pressed goes here ---
 
-            // visual feedback that the main task is executed, setting this once would actually be enough
-            led1 = 1;
-
-            // enable hardwaredriver dc motors: 0 -> disabled, 1 -> enabled
-            enable_motors = 1;
 
             // pwm_M1.write(0.75f); // apply 6V to the motor
             // motor_M2.setVelocity(motor_M2.getMaxVelocity());
-            motor_M3.setRotation(3.0f);
+            motor_M3.setVelocity(0.5f);
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
@@ -104,8 +96,7 @@ int main()
                 // --- variables and objects that should be reset go here ---
 
                 // reset variables and objects
-                led1 = 0;
-                enable_motors = 0;
+                motor_M3.setVelocity(0.0f);
             }
         }
 

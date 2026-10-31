@@ -1,29 +1,27 @@
 /**
- * @file DCMotor.h
- * @brief This file defines the DCMotor class, which is used for controlling a DC motor.
+ * @file DCMotorOpenLoop.h
+ * @brief This file defines the DCMotorOpenLoop class, which is used for controlling a DC motor.
  *
- * The DCMotor class provides functionality to set and control the velocity and rotation of a DC motor.
+ * The DCMotorOpenLoop class provides functionality to set and control the velocity and rotation of a DC motor.
  * It uses various components such as an EncoderCounter, FastPWM, Motion control, PID controller,
  * and an IIR Filter for precise control. The class offers methods to set velocity, rotation, control gains,
  * and retrieve the current state of the motor.
  *
  * @dependencies
  * This class relies on external components:
- * - EncoderCounter: For encoding the rotation counts.
  * - FastPWM: For generating high-frequency PWM signals.
  * - Motion: For handling motion control.
  * - PIDCntrl: For implementing PID control.
- * - IIR_Filter: For filtering the velocity signals.
  *
  * Usage:
- * To use the DCMotor class, create an instance with the required motor parameters.
+ * To use the DCMotorOpenLoop class, create an instance with the required motor parameters.
  * Set the desired velocity or rotation using the setVelocity() or setRotation() methods.
  * Control gains can be adjusted using setVelocityCntrl() and setRotationCntrlGain() methods.
  * Current motor status can be obtained using the get methods like getVelocity(), getRotation(), etc.
  *
  * Example:
  * ```
- * DCMotor motor(PWM_PIN, ENC_A_PIN, ENC_B_PIN, COUNTS_PER_TURN, KN, VOLTAGE_MAX);
+ * DCMotorOpenLoop motor(PWM_PIN, DIRECTION_PIN, GEAR_RATIO, KN, VOLTAGE_MAX);
  * motor.setVelocity(1.5f); // command velocity to 1.5 rotations per second
  * float currentVelocity = motor.getVelocity(); // read current velocity
  * motor.setRotation(5.0f); // command rotation to 5
@@ -33,17 +31,17 @@
  * @author M. Peter / pmic / pichim
  */
 
-#ifndef DC_MOTOR_H_
-#define DC_MOTOR_H_
+#ifndef DC_MOTOR_OPEN_LOOP_H_
+#define DC_MOTOR_OPEN_LOOP_H_
 
 #include <math.h>
 
-#include "EncoderCounter.h"
+
 #include "FastPWM.h"
 #include "Motion.h"
 #include "ThreadFlag.h"
 #include "PIDCntrl.h"
-#include "IIRFilter.h"
+
 #include "PESBoardPinMap.h"
 
 #ifndef M_PIf
@@ -64,54 +62,29 @@
 #define BUFFER_LENGTH 20 // 5 float values
 #endif
 
-class DCMotor
+class DCMotorOpenLoop
 {
 public:
     /**
-     * @brief Construct a new DCMotor object.
+     * @brief Construct a new DCMotorOpenLoop object.
      *
      * @param pwm_pin The pin name for PWM control of the motor.
-     * @param enc_a_pin The first pin name for the encoder.
-     * @param enc_b_pin The second pin name for the encoder.
      * @param gear_ratio The gear ratio of the gear box.
      * @param kn The motor constant [rpm/V].
      * @param voltage_max The maximum voltage for the motor (default: 12.0f).
-     * @param counts_per_turn The number of encoder counts per turn of the motor (default: 20.0f).
      */
-    explicit DCMotor(PinName pwm_pin,
+    explicit DCMotorOpenLoop(PinName pwm_pin,
 #ifdef NEW_PES_BOARD_VERSION
-                     PinName direction_pin,
+                             PinName direction_pin,
 #endif
-                     PinName enc_a_pin,
-                     PinName enc_b_pin,
-                     float gear_ratio,
-                     float kn,
-                     float voltage_max = 12.0f,
-                     float counts_per_turn = 20.0f);
+                             float gear_ratio,
+                             float kn,
+                             float voltage_max = 12.0f);
 
     /**
-     * @brief Construct a new DCMotor object without encoder.
-     *
-     * @param pwm_pin The pin name for PWM control of the motor.
-     * @param dir_pin The pin name for direction control of the motor.
-     * @param gear_ratio The gear ratio of the gear box.
-     * @param kn The motor constant [rpm/V].
-     * @param voltage_max The maximum voltage for the motor (default: 12.0f).
-     * @param counts_per_turn The number of encoder counts per turn of the motor (default: 20.0f).
+     * @brief Destroy the DCMotorOpenLoop object.
      */
-    explicit DCMotor(PinName pwm_pin,
-#ifdef NEW_PES_BOARD_VERSION
-                     PinName direction_pin,
-#endif
-                     float gear_ratio,
-                     float kn,
-                     float voltage_max = 12.0f,
-                     float counts_per_turn = 20.0f);
-
-    /**
-     * @brief Destroy the DCMotor object.
-     */
-    virtual ~DCMotor();
+    virtual ~DCMotorOpenLoop();
 
     /**
      * @brief Set the target velocity of the motor.
@@ -123,35 +96,35 @@ public:
     /**
      * @brief Set the target rotation of the motor.
      *
-     * @param rotation The target rotation in degrees.
+     * @param rotation The target rotation in revolutions.
      */
     void setRotation(float rotation);
 
     /**
      * @brief Set the relative target rotation of the motor. Keep in mind that you do this only once.
      *
-     * @param rotation_relative The relative target rotation in degrees.
+     * @param rotation_relative The relative target rotation in revolutions.
      */
     void setRotationRelative(float rotation_relative);
 
     /**
      * @brief Get the current rotation target of the motor.
      *
-     * @return float The current rotation target in degrees.
+     * @return float The current rotation target in revolutions.
      */
     float getRotationTarget() const;
 
     /**
      * @brief Get the current rotation setpoint of the motor.
      *
-     * @return float The current rotation setpoint in degrees.
+     * @return float The current rotation setpoint in revolutions.
      */
     float getRotationSetpoint() const;
 
     /**
      * @brief Get the current rotation of the motor.
      *
-     * @return float The current rotation in degrees.
+     * @return float Estimated rotation in revolutions.
      */
     float getRotation() const;
 
@@ -258,12 +231,6 @@ public:
      */
     void disableMotionPlanner();
 
-    /**
-     * @brief Get the current encoder count.
-     *
-     * @return long The current encoder count.
-     */
-    long getEncoderCount() const;
 
     /**
      * @brief Set the motion planner internal velocity.
@@ -310,10 +277,8 @@ private:
 #ifdef NEW_PES_BOARD_VERSION
     DigitalOut m_Direction; // true for forward, false for backward
 #endif  
-    EncoderCounter m_EncoderCounter;
     Motion m_Motion;
     PIDCntrl m_PIDCntrl_velocity;
-    IIRFilter m_IIR_Filter_velocity;
 #if PERFORM_GPA_MEAS
     GPA m_GPA;
     bool m_start_gpa = false;
@@ -339,7 +304,6 @@ private:
     bool m_enable_motion_planner;
 
     // motor parameters
-    float m_counts_per_turn;
     float m_voltage_max;
     float m_velocity_physical_max;
     float m_velocity_max;
@@ -349,8 +313,6 @@ private:
     float m_p;
 
     // signals
-    long  m_count;
-    short m_count_previous;
     float m_rotation_initial;
     float m_rotation_target;
     float m_rotation_setpoint;
@@ -365,4 +327,4 @@ private:
     void sendThreadFlag();
 };
 
-#endif /* DC_MOTOR_H_ */
+#endif /* DC_MOTOR_OPEN_LOOP_H_ */

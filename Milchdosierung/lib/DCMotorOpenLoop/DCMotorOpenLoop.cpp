@@ -1,44 +1,37 @@
-#include "DCMotor.h"
+#include "DCMotorOpenLoop.h"
 
 
-DCMotor::DCMotor(PinName pwm_pin,
+DCMotorOpenLoop::DCMotorOpenLoop(PinName pwm_pin,
 #ifdef NEW_PES_BOARD_VERSION
-                 PinName direction_pin,
+                                 PinName direction_pin,
 #endif
-                 PinName enc_a_pin,
-                 PinName enc_b_pin,
-                 float gear_ratio,
-                 float kn,
-                 float voltage_max,
-                 float counts_per_turn) : m_FastPWM(pwm_pin),
+                                 float gear_ratio,
+                                 float kn,
+                                 float voltage_max) : m_FastPWM(pwm_pin),
 #ifdef NEW_PES_BOARD_VERSION
-                                          m_Direction(direction_pin),
+                                                       m_Direction(direction_pin),
 #endif
-                                          m_EncoderCounter(enc_a_pin, enc_b_pin),
-                                          m_Thread(osPriorityHigh1)
+                                                       m_Thread(osPriorityHigh1)
 #if PERFORM_CHIRP_MEAS
-                                          , m_BufferedSerial(USBTX, USBRX)
+                                                       , m_BufferedSerial(USBTX, USBRX)
 #endif
 {
     // motor parameters
-    m_counts_per_turn = gear_ratio * counts_per_turn;
     m_voltage_max = voltage_max;
     m_velocity_physical_max = kn / 60.0f * voltage_max;
     m_velocity_max = m_velocity_physical_max;
 
     // default controller parameters, parameters adapted from gear ratio 78:1 tune
     const float k_gear = gear_ratio / 78.125f;
-    setVelocityCntrl(DCMotor::KP * k_gear, DCMotor::KI * k_gear, DCMotor::KD * k_gear);
+    setVelocityCntrl(DCMotorOpenLoop::KP * k_gear, DCMotorOpenLoop::KI * k_gear, DCMotorOpenLoop::KD * k_gear);
     if (kn > 0.0f)
         m_PIDCntrl_velocity.setParamF(60.0f / kn);
     setRotationCntrlGain();
 
     // iir filter
-    m_IIR_Filter_velocity.lowPass2Init(15.0f, 1.0f, TS);
 
     // initialise control signals
-    m_count = m_count_previous = m_EncoderCounter.read();
-    m_rotation_initial = static_cast<float>(m_count) / m_counts_per_turn;
+    m_rotation_initial = 0.0f;
     m_rotation_target = m_rotation_initial;
     m_rotation_setpoint = m_rotation_initial;
     m_rotation = m_rotation_initial;
@@ -83,77 +76,77 @@ DCMotor::DCMotor(PinName pwm_pin,
 #endif
 
     // start thread
-    m_Thread.start(callback(this, &DCMotor::threadTask));
+    m_Thread.start(callback(this, &DCMotorOpenLoop::threadTask));
 
     // attach sendThreadFlag() to ticker so that sendThreadFlag() is called periodically, which signals the thread to execute
-    m_Ticker.attach(callback(this, &DCMotor::sendThreadFlag), std::chrono::microseconds{PERIOD_MUS});
+    m_Ticker.attach(callback(this, &DCMotorOpenLoop::sendThreadFlag), std::chrono::microseconds{PERIOD_MUS});
 }
 
-DCMotor::~DCMotor()
+DCMotorOpenLoop::~DCMotorOpenLoop()
 {
     m_Ticker.detach();
     m_Thread.terminate();
 }
 
-void DCMotor::setVelocity(float velocity)
+void DCMotorOpenLoop::setVelocity(float velocity)
 {
     m_cntrlMode = CntrlMode::Velocity;
     m_velocity_target = velocity;
 }
 
-void DCMotor::setRotation(float rotation)
+void DCMotorOpenLoop::setRotation(float rotation)
 {
     m_cntrlMode = CntrlMode::Rotation;
     m_rotation_target = m_rotation_initial + rotation;
 }
 
-void DCMotor::setRotationRelative(float rotation_relative)
+void DCMotorOpenLoop::setRotationRelative(float rotation_relative)
 {
     m_cntrlMode = CntrlMode::Rotation;
     m_rotation_target = getRotation() + rotation_relative;
 }
 
-float DCMotor::getRotationTarget() const
+float DCMotorOpenLoop::getRotationTarget() const
 {
     return m_rotation_target;
 }
 
-float DCMotor::getRotationSetpoint() const
+float DCMotorOpenLoop::getRotationSetpoint() const
 {
     return m_rotation_setpoint;
 }
 
-float DCMotor::getRotation() const
+float DCMotorOpenLoop::getRotation() const
 {
     return m_rotation - m_rotation_initial;
 }
 
-float DCMotor::getVelocityTarget() const
+float DCMotorOpenLoop::getVelocityTarget() const
 {
     return m_velocity_target;
 }
 
-float DCMotor::getVelocitySetpoint() const
+float DCMotorOpenLoop::getVelocitySetpoint() const
 {
     return m_velocity_setpoint;
 }
 
-float DCMotor::getVelocity() const
+float DCMotorOpenLoop::getVelocity() const
 {
     return m_velocity;
 }
 
-float DCMotor::getVoltage() const
+float DCMotorOpenLoop::getVoltage() const
 {
     return m_voltage;
 }
 
-float DCMotor::getPWM() const
+float DCMotorOpenLoop::getPWM() const
 {
     return m_pwm;
 }
 
-void DCMotor::setVelocityCntrl(float kp, float ki, float kd)
+void DCMotorOpenLoop::setVelocityCntrl(float kp, float ki, float kd)
 {
     const float tau_f = 1.0f / (2.0f * M_PIf * 30.0f);
     const float tau_ro = 1.0f / (2.0f * M_PIf * 0.5f / (2.0f * TS));
@@ -168,79 +161,74 @@ void DCMotor::setVelocityCntrl(float kp, float ki, float kd)
     // avoid students melting their motors
     setVelocityCntrlIntegratorLimitsPercent();
     // // print for debugging
-    // printf("DCMotor: velocity controller parameters: kp = %.4f, ki = %.4f, kd = %.4f\n", kp, ki, kd);
+    // printf("DCMotorOpenLoop: velocity controller parameters: kp = %.4f, ki = %.4f, kd = %.4f\n", kp, ki, kd);
 }
 
-void DCMotor::setVelocityCntrlIntegratorLimitsPercent(float percent_of_max)
+void DCMotorOpenLoop::setVelocityCntrlIntegratorLimitsPercent(float percent_of_max)
 {
     percent_of_max = percent_of_max * 0.01f;
     m_PIDCntrl_velocity.setIntegratorLimits(percent_of_max * m_voltage_max * (2.0f * PWM_MIN - 1.0f),
                                             percent_of_max * m_voltage_max * (2.0f * PWM_MAX - 1.0f));
 }
 
-void DCMotor::setRotationCntrlGain(float p)
+void DCMotorOpenLoop::setRotationCntrlGain(float p)
 {
     m_p = p;
 }
 
-void DCMotor::setMaxVelocity(float velocity)
+void DCMotorOpenLoop::setMaxVelocity(float velocity)
 {
     m_velocity_max = (velocity > m_velocity_physical_max) ? m_velocity_physical_max : velocity;
     m_Motion.setProfileVelocity(m_velocity_max);
 }
 
-float DCMotor::getMaxVelocity() const
+float DCMotorOpenLoop::getMaxVelocity() const
 {
     return m_velocity_max;
 }
 
-float DCMotor::getMaxPhysicalVelocity() const
+float DCMotorOpenLoop::getMaxPhysicalVelocity() const
 {
     return m_velocity_physical_max;
 }
 
-void DCMotor::setMaxAcceleration(float acceleration)
+void DCMotorOpenLoop::setMaxAcceleration(float acceleration)
 {
     m_Motion.setProfileAcceleration(acceleration);
     m_Motion.setProfileDeceleration(acceleration);
 }
 
-float DCMotor::getMaxAcceleration() const
+float DCMotorOpenLoop::getMaxAcceleration() const
 {
     return m_acceleration_max;
 }
 
-void DCMotor::enableMotionPlanner()
+void DCMotorOpenLoop::enableMotionPlanner()
 {
     m_enable_motion_planner = true;
 }
 
-void DCMotor::disableMotionPlanner()
+void DCMotorOpenLoop::disableMotionPlanner()
 {
     m_enable_motion_planner = false;
 }
 
-long DCMotor::getEncoderCount() const
-{
-    return m_count;
-}
-
-void DCMotor::setMotionPlannerVelocity(float velocity) {
+void DCMotorOpenLoop::setMotionPlannerVelocity(float velocity) {
     m_Motion.setVelocity(velocity);
 }
 
-void DCMotor::setMotionPlannerPosition(float position) {
+void DCMotorOpenLoop::setMotionPlannerPosition(float position) {
     m_Motion.setPosition(position);
 }
 
-void DCMotor::setFastPWMPeriod_mus(int period_mus)
+void DCMotorOpenLoop::setFastPWMPeriod_mus(int period_mus)
 {
     // set the period of the PWM signal in microseconds
     m_FastPWM.period_mus(period_mus);
 }
 
 #if PERFORM_GPA_MEAS
-void DCMotor::startGPA()
+void DCMotorOpenLoop::startGPA()
 {
     if (!m_start_gpa) {
         m_start_gpa = true;
@@ -249,7 +237,7 @@ void DCMotor::startGPA()
 #endif
 
 #if PERFORM_CHIRP_MEAS
-void DCMotor::startChirp()
+void DCMotorOpenLoop::startChirp()
 {
     if (!m_start_chirp) {
         m_start_chirp = true;
@@ -258,121 +246,71 @@ void DCMotor::startChirp()
 }
 #endif
 
-void DCMotor::threadTask()
+void DCMotorOpenLoop::threadTask()
 {
-#if PERFORM_GPA_MEAS
-    // print some gpa info
-    m_GPA.printGPAmeasPara();
-#endif
-
     while (true) {
         ThisThread::flags_wait_any(m_ThreadFlag);
-
-        // update counts (avoid overflow)
-        const short count_actual = m_EncoderCounter.read();
-        const short count_delta = count_actual - m_count_previous; // avoid overflow
-        m_count_previous = count_actual;
-
-        // update rotation
-        m_count += count_delta;
-        m_rotation = static_cast<float>(m_count) / m_counts_per_turn;
-
-        // update velocity
-        const float rotation_increment = static_cast<float>(count_delta) / m_counts_per_turn;
-        m_velocity = m_IIR_Filter_velocity.apply(rotation_increment / TS);
 
         float velocity_setpoint = 0.0f;
 
         switch (m_cntrlMode) {
-
             case CntrlMode::Rotation:
                 if (m_enable_motion_planner) {
-                    // use motion planner
+                    // Motion planner erzeugt den Sollverlauf ohne Encoder-Rueckmeldung.
                     m_Motion.incrementToPosition(m_rotation_target, TS);
                     m_rotation_setpoint = m_Motion.getPosition();
-                    if ((fabs(m_rotation_setpoint - m_rotation) > ROTATION_ERROR_MAX) || (fabs(m_Motion.getVelocity()) > 0.0f))
-                        velocity_setpoint = m_p * (m_rotation_setpoint - m_rotation) + m_Motion.getVelocity();
+                    velocity_setpoint = m_Motion.getVelocity();
                 } else {
                     m_rotation_setpoint = m_rotation_target;
-                    if (fabs(m_rotation_setpoint - m_rotation) > ROTATION_ERROR_MAX)
-                        velocity_setpoint = m_p * (m_rotation_setpoint - m_rotation);
+                    velocity_setpoint = m_p * (m_rotation_setpoint - m_rotation);
                 }
-
                 break;
 
             case CntrlMode::Velocity:
                 if (m_enable_motion_planner) {
-                    // use motion planner
                     m_Motion.incrementToVelocity(m_velocity_target, TS);
                     velocity_setpoint = m_Motion.getVelocity();
                 } else {
                     velocity_setpoint = m_velocity_target;
                 }
-
                 break;
 
             default:
-
-                break; // should not happen
+                break;
         }
 
-        // constrain velocity to (-m_velocity_max, m_velocity_max)
         velocity_setpoint = (velocity_setpoint >  m_velocity_max) ?  m_velocity_max :
                             (velocity_setpoint < -m_velocity_max) ? -m_velocity_max :
                              velocity_setpoint;
 
-#if PERFORM_GPA_MEAS
-        static float exc = 0.0f;
-        // closed-loop measurement
-        const float voltage = m_PIDCntrl_velocity.update(0.6f * m_velocity_max - m_velocity + exc);
-        if (m_start_gpa) {
-            exc = m_GPA.update(voltage, m_velocity);
-        }
-#elif PERFORM_CHIRP_MEAS
-        const float magnitude = 4.0f;
-        const float offset = 5.0f;
-        float voltage = offset;
-        if (m_start_chirp && m_chirp.update()) {
-            const float time_ms = static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(m_timer.elapsed_time()).count()) * 1.0e-3f;
-            m_timer.reset();
-            const float exc = m_chirp.getExc();
-            const float fchirp = m_chirp.getFreq();
-            const float sinarg = m_chirp.getSinarg();
-            voltage = magnitude * exc + offset;
-            if (m_BufferedSerial.writable()) {
-                memcpy(&m_buffer[0 ], &time_ms, 4);
-                memcpy(&m_buffer[4 ], &voltage, 4);
-                memcpy(&m_buffer[8 ], &fchirp, 4);
-                memcpy(&m_buffer[12], &sinarg, 4);
-                memcpy(&m_buffer[16], &m_rotation, 4);
-                m_BufferedSerial.write(m_buffer, 20);
-            }
-        }
-#else
-        const float voltage = m_PIDCntrl_velocity.update(velocity_setpoint,       // w
-                                                         m_velocity,              // y_p
-                                                         rotation_increment / TS, // y_i
-                                                         m_velocity);             // y_d
-#endif
+        // Schaetzung aus dem Sollwert; die echte Motordrehung wird nicht gemessen.
+        m_velocity = velocity_setpoint;
+        m_velocity_setpoint = velocity_setpoint;
+        m_rotation += velocity_setpoint * TS;
 
-        // calculate pwm and write output
+        // Open-loop: Sollgeschwindigkeit in Spannung umrechnen.
+        float voltage = 0.0f;
+        if (m_velocity_physical_max > 0.0f && m_voltage_max > 0.0f) {
+            voltage = m_voltage_max * velocity_setpoint / m_velocity_physical_max;
+        }
+        voltage = (voltage >  m_voltage_max) ?  m_voltage_max :
+                  (voltage < -m_voltage_max) ? -m_voltage_max :
+                   voltage;
+
 #ifdef NEW_PES_BOARD_VERSION
         const float pwm = fabs(voltage / m_voltage_max);
-        const bool direction = (voltage > 0.0f) ? true : false;
+        const bool direction = (voltage > 0.0f);
         m_Direction.write(direction);
 #else
         const float pwm = 0.5f + 0.5f * voltage / m_voltage_max;
 #endif
         m_FastPWM.write(pwm);
 
-        // update signals
-        m_velocity_setpoint = velocity_setpoint;
         m_voltage = voltage;
         m_pwm = pwm;
     }
 }
-
-void DCMotor::sendThreadFlag()
+void DCMotorOpenLoop::sendThreadFlag()
 {
     // set the thread flag to trigger the thread task
     m_Thread.flags_set(m_ThreadFlag);

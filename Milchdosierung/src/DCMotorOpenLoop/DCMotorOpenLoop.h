@@ -28,7 +28,7 @@
  * motor.getRotation(); // read current rotation
  * ```
  *
- * @author M. Peter / pmic / pichim
+ * @author M. Peter / pmic / pichim / S. Geering
  */
 
 #ifndef DC_MOTOR_OPEN_LOOP_H_

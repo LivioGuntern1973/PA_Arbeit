@@ -17,7 +17,7 @@ bool do_reset_all_once = false;    // this variable is used to reset certain var
 DebounceIn user_button(BUTTON1);   // create DebounceIn to evaluate the user button
 void toggle_do_execute_main_fcn(); // custom function which is getting executed when user
                                    // button gets pressed, definition at the end
-float toggle_dir = 1.0f;
+
 // main runs as an own thread
 int main()
 {
@@ -64,7 +64,7 @@ int main()
     // motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
     // motor M3
-    const float gear_ratio_M3 = 78.125f; // gear ratio
+    const float gear_ratio_M3 = 25.0f; // gear ratio
     const float kn_M3 = 180.0f / 12.0f;  // motor constant [rpm/V]
     // it is assumed that only one motor is available, therefore
     // we use the pins from M1, so you can leave it connected to M1
@@ -76,6 +76,8 @@ int main()
 
     // start timer
     main_task_timer.start();
+
+    printf("enter\n");
 
     // this loop will run forever
     while (true) {
@@ -95,7 +97,7 @@ int main()
 
             // pwm_M1.write(0.75f); // apply 6V to the motor
             // motor_M2.setVelocity(motor_M2.getMaxVelocity());
-            motor_M3.setRotation(toggle_dir*3.0f);
+            motor_M3.setRotation(1.0f);
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
@@ -106,12 +108,11 @@ int main()
                 // reset variables and objects
                 led1 = 0;
                 enable_motors = 0;
-                toggle_dir = -1.0f*toggle_dir; // change direction for next time
             }
         }
 
         // print to the serial terminal
-        printf("Motor position: %f\t Target: %f \n", motor_M3.getRotation(), motor_M3.getRotationTarget());
+        printf("Motor position: %f \n", motor_M3.getRotation());
 
         // toggling the user led
         user_led = !user_led;

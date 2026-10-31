@@ -7,7 +7,8 @@ DCMotorOpenLoop::DCMotorOpenLoop(PinName pwm_pin,
 #endif
                                  float gear_ratio,
                                  float kn,
-                                 float voltage_max) : m_FastPWM(pwm_pin),
+                                 float voltage_max,
+                                 float pwm_min) : m_FastPWM(pwm_pin),
 #ifdef NEW_PES_BOARD_VERSION
                                                        m_Direction(direction_pin),
 #endif
@@ -18,6 +19,8 @@ DCMotorOpenLoop::DCMotorOpenLoop(PinName pwm_pin,
 {
     // motor parameters
     m_voltage_max = voltage_max;
+    m_pwm_min = (pwm_min < 0.0f) ? 0.0f :
+                 (pwm_min > 1.0f) ? 1.0f : pwm_min;
     m_velocity_physical_max = kn / 60.0f * voltage_max;
     m_velocity_max = m_velocity_physical_max;
 
@@ -297,12 +300,21 @@ void DCMotorOpenLoop::threadTask()
                   (voltage < -m_voltage_max) ? -m_voltage_max :
                    voltage;
 
+        float pwm_magnitude = 0.0f;
+        if (m_voltage_max > 0.0f) {
+            pwm_magnitude = fabs(voltage / m_voltage_max);
+        }
+        if (velocity_setpoint != 0.0f && pwm_magnitude < m_pwm_min) {
+            pwm_magnitude = m_pwm_min;
+        }
+
 #ifdef NEW_PES_BOARD_VERSION
-        const float pwm = fabs(voltage / m_voltage_max);
-        const bool direction = (voltage > 0.0f);
+        const float pwm = pwm_magnitude;
+        const bool direction = (velocity_setpoint > 0.0f);
         m_Direction.write(direction);
 #else
-        const float pwm = 0.5f + 0.5f * voltage / m_voltage_max;
+        const float signed_pwm = (velocity_setpoint >= 0.0f) ? pwm_magnitude : -pwm_magnitude;
+        const float pwm = 0.5f + 0.5f * signed_pwm;
 #endif
         m_FastPWM.write(pwm);
 
@@ -315,3 +327,7 @@ void DCMotorOpenLoop::sendThreadFlag()
     // set the thread flag to trigger the thread task
     m_Thread.flags_set(m_ThreadFlag);
 }
+
+
+
+

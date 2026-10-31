@@ -61,9 +61,10 @@ int main()
     // motor M3
     const float gear_ratio_M3 = 25.0f; // gear ratio
     const float kn_M3 = 180.0f / 12.0f;  // motor constant [rpm/V]
+    const float pwm_min_M3 = 0.12f;  // minimum pwm at slow speed [%]
     // it is assumed that only one motor is available, therefore
     // we use the pins from M1, so you can leave it connected to M1
-    DCMotorOpenLoop motor_M3(PB_PWM_M1, PB_DIR_M1,gear_ratio_M3, kn_M3, voltage_max);
+    DCMotorOpenLoop motor_M3(PB_PWM_M1, PB_DIR_M1,gear_ratio_M3, kn_M3, voltage_max, pwm_min_M3);
     // enable the motion planner for smooth movement
     motor_M3.enableMotionPlanner();
     // limit max. velocity to half physical possible velocity

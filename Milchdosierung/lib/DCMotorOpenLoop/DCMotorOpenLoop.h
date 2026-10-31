@@ -72,6 +72,7 @@ public:
      * @param gear_ratio The gear ratio of the gear box.
      * @param kn The motor constant [rpm/V].
      * @param voltage_max The maximum voltage for the motor (default: 12.0f).
+     * @param pwm_min Minimum PWM magnitude for nonzero commands, from 0.0f to 1.0f.
      */
     explicit DCMotorOpenLoop(PinName pwm_pin,
 #ifdef NEW_PES_BOARD_VERSION
@@ -79,7 +80,8 @@ public:
 #endif
                              float gear_ratio,
                              float kn,
-                             float voltage_max = 12.0f);
+                             float voltage_max = 12.0f,
+                             float pwm_min = 0.0f);
 
     /**
      * @brief Destroy the DCMotorOpenLoop object.
@@ -322,9 +324,14 @@ private:
     float m_velocity;
     float m_voltage;
     float m_pwm;
+    float m_pwm_min;
 
     void threadTask();
     void sendThreadFlag();
 };
 
 #endif /* DC_MOTOR_OPEN_LOOP_H_ */
+
+
+
+

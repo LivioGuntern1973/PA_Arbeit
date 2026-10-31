@@ -35,9 +35,9 @@ int main()
     const float voltage_max = 12.0f; // maximum voltage of battery packs
     const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
     Pump pump1(PB_PWM_M1, PB_DIR_M1, voltage_min, voltage_max);
-    pump1.setVelocity(2.0f);
-    pump1.setAccelerationStart(0.1f);
-    pump1.setAccelerationStop(0.5f);
+    pump1.setVelocity(6.0f);
+    pump1.setAccelerationStart(3.0f);
+    pump1.setAccelerationStop(12.0f);
     enable_motors = 1;
 
     // state machine

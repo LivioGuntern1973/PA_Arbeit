@@ -5,7 +5,7 @@ Pump::Pump(PinName pwm_pin,
                    PinName direction_pin,
                    float voltage_min,
                    float voltage_max) : m_Thread(osPriorityNormal),
-                                        m_motor(pwm_pin, direction_pin, 1.0f, 1.0f, voltage_max, voltage_min/voltage_max)
+                                        m_motor(pwm_pin, direction_pin, 1.0f, 60.0f, voltage_max, voltage_min/voltage_max)
 {
 
     // initialise control signals

@@ -66,8 +66,6 @@ int main()
     // start timer
     main_task_timer.start();
 
-    printf("enter\n");
-
     // this loop will run forever
     while (true) {
         main_task_timer.reset();

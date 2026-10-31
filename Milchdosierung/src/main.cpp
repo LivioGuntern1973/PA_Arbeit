@@ -7,11 +7,14 @@
 #include <DCMotorOpenLoop/DCMotorOpenLoop.h>
 #include <Pump/Pump.h>
 
-bool user_button_latch = false; // this variable will be toggled via the user button (blue button) and decides whether to execute the main task or not
+bool user_button_latch = false; // this variable will be toggled via the user button (blue button)
+bool user_button_edge = false; // this variable will be set for one cycle when pressing the blue button
+bool manual_mode = false; //
+#define AND_MANUAL_MODE(transition) ((transition) && (manual_mode == 0 or user_button_edge))
 
 // objects for user button (blue button) handling on nucleo board
 DebounceIn user_button(BUTTON1);   // create DebounceIn to evaluate the user button
-void toggle_user_button_state_fcn(); // custom function which is getting executed when user button gets pressed, definition at the end
+void toggle_user_button_state_fcn(); // custom function which is getting executed when user button gets pressed
 
 // main runs as an own thread
 int main()
@@ -32,6 +35,9 @@ int main()
     const float voltage_max = 12.0f; // maximum voltage of battery packs
     const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
     Pump pump1(PB_PWM_M1, PB_DIR_M1, voltage_min, voltage_max);
+    pump1.setVelocity(2.0f);
+    pump1.setAccelerationStart(0.1f);
+    pump1.setAccelerationStop(0.5f);
     enable_motors = 1;
 
     // state machine
@@ -42,7 +48,6 @@ int main()
 
     main_task_timer.start();
 
-
     while (true) {
         main_task_timer.reset();
         
@@ -50,25 +55,29 @@ int main()
             case 0:
                 
 
-                if (user_button == 0)
+                if (user_button_edge)
                 {
                     step = 1;
                 }
                 break;
             case 1:
                 pump1.start();
-
-                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000)
-                {
-                    step = 2;
-                }
+                step = 2;
                 break;
             case 2:
-                pump1.stop();
-
-                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 1000)
+                if (AND_MANUAL_MODE(duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000))
                 {
                     step = 3;
+                }
+                break;
+            case 3:
+                pump1.stop();
+                step = 4;
+                break;
+            case 4:
+                if (AND_MANUAL_MODE(duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 1000))
+                {
+                    step = 5;
                 }
                 break;
             default:
@@ -83,9 +92,15 @@ int main()
             step_old = step;
         }
         
+        //printf("%d\n", step);
 
 
-
+        // user button edge
+        if (user_button_edge)
+        {
+            user_button_edge = 0;
+        }
+        
         // toggling the user led
         user_led = !user_led;
         // read timer and make the main thread sleep for the remaining time span (non blocking)
@@ -101,4 +116,5 @@ void toggle_user_button_state_fcn()
 {
     // toggle user_button_latch if the button was pressed
     user_button_latch = !user_button_latch;
+    user_button_edge = 1;
 }

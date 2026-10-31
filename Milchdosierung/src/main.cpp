@@ -22,12 +22,17 @@ int main()
     const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, therefore the main task will run 50 times per second
     Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
 
+
     DigitalOut user_led(LED1); // led on nucleo board
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS); // create object to enable power electronics for the dc motors
 
+    // state machine
+    Timer step_duration_timer;
+    uint16_t step = 0;
+    uint16_t step_old = 9999; // set above 0 to detect a step change at startup
 
     // motor M1
-    const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
+    const float voltage_max = 12.0f; // maximum voltage of battery packs
     const float gear_ratio_M1 = 25.0f; // gear ratio
     const float kn_M1 = 180.0f / 12.0f;  // motor constant [rpm/V]
     const float pwm_min_M1 = 0.12f;  // minimum pwm at slow speed [%]
@@ -44,13 +49,53 @@ int main()
 
     while (true) {
         main_task_timer.reset();
+        
+        switch (step) {
+            case 0:
+                motor_M1.setVelocity(0.0f);
 
+                if (user_button == 0)
+                {
+                    step = 1;
+                }
+                break;
+            case 1:
+                motor_M1.setVelocity(-1.0f);
 
-        if (user_button_latch) {
-            motor_M1.setVelocity(0.5f);
-        } else {
-            motor_M1.setVelocity(-2.0f);
+                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000)
+                {
+                    step = 2;
+                }
+                break;
+            case 2:
+                motor_M1.setVelocity(0.0f);
+
+                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 5000)
+                {
+                    step = 3;
+                }
+                break;
+            case 3:
+                motor_M1.setVelocity(0.5f);
+
+                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000)
+                {
+                    step = 0;
+                }
+                break;
+            default:
+                ;
         }
+
+        // detect a change of the step
+        if (step != step_old)
+        {
+            step_duration_timer.reset();
+            step_duration_timer.start();
+            step_old = step;
+        }
+        
+
 
 
         // toggling the user led

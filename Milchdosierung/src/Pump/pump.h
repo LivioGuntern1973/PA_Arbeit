@@ -81,37 +81,37 @@ public:
     float getVelocity() const;
 
     /**
-     * @brief Set the acceleration for starting the pump.
+     * @brief Set the duration for starting the pump.
      *
-     * @param acceleration The acceleration in for starting volts per second.
+     * @param duration The duration in for starting seconds.
      */
-    void setAccelerationStart(float acceleration);
+    void setRampTimeStart(float duration);
 
     /**
-     * @brief Get the maximum acceleration for starting the pump.
+     * @brief Get the maximum duration for starting the pump.
      *
-     * @return float The maximum acceleration for starting in volts per second.
+     * @return float The maximum duration for starting in seconds.
      */
-    float getAccelerationStart() const;
+    float getdurationStart() const;
 
     /**
-     * @brief Set the acceleration for stopping the pump.
+     * @brief Set the duration for stopping the pump.
      *
-     * @param acceleration The acceleration for stopping in volts per second.
+     * @param duration The duration for stopping in seconds.
      */
-    void setAccelerationStop(float acceleration);
+    void setRampTimeStop(float duration);
 
     /**
-     * @brief Get the maximum acceleration for stopping the pump.
+     * @brief Get the maximum duration for stopping the pump.
      *
-     * @return float The maximum acceleration for stopping in volts per second.
+     * @return float The maximum duration for stopping in seconds.
      */
-    float getAccelerationStop() const;
+    float getRampTimeStop() const;
 
     /**
      * @brief Set the minimum voltage for the motor.
      *
-     * @param acceleration The minimum voltage for the motor in volts.
+     * @param duration The minimum voltage for the motor in volts.
      */
     void setVoltageMin(float voltage_min);
 
@@ -133,8 +133,8 @@ private:
 
     // signals
     float m_velocity;
-    float m_accelerationStart;
-    float m_accelerationStop;
+    float m_rampTimeStart;
+    float m_rampTimeStop;
     float m_voltageMin;
 
     void threadTask();

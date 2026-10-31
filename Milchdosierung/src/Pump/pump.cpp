@@ -10,8 +10,8 @@ Pump::Pump(PinName pwm_pin,
 
     // initialise control signals
     m_velocity = voltage_max;
-    m_accelerationStart = voltage_max * 0.5f;
-    m_accelerationStop = voltage_max * 5.0f;
+    m_rampTimeStart = 2;
+    m_rampTimeStop = 0.5;
 
     m_motor.enableMotionPlanner();
 
@@ -30,13 +30,13 @@ Pump::~Pump()
 
 void Pump::start(void)
 {
-    m_motor.setMaxAcceleration(m_accelerationStart);
+    m_motor.setMaxAcceleration(m_velocity/m_rampTimeStart);
     m_motor.setVelocity(m_velocity);
 }
 
 void Pump::stop(void)
 {
-    m_motor.setMaxAcceleration(m_accelerationStop);
+    m_motor.setMaxAcceleration(m_velocity/m_rampTimeStop);
     m_motor.setVelocity(0.0f);
 }
 
@@ -51,23 +51,23 @@ float Pump::getVelocity() const
 }
 
 
-void Pump::setAccelerationStart(float acceleration)
+void Pump::setRampTimeStart(float duration)
 {
-    m_accelerationStart = acceleration;
+    m_rampTimeStart = duration > 0.1f ? duration : 0.1f;
 }
-float Pump::getAccelerationStart() const
+float Pump::getdurationStart() const
 {
-    return m_accelerationStart;
+    return m_rampTimeStart;
 }
 
 
-void Pump::setAccelerationStop(float acceleration)
+void Pump::setRampTimeStop(float duration)
 {
-    m_accelerationStop = acceleration;
+    m_rampTimeStop = duration > 0.1f ? duration : 0.1f;
 }
-float Pump::getAccelerationStop() const
+float Pump::getRampTimeStop() const
 {
-    return m_accelerationStop;
+    return m_rampTimeStop;
 }
 
 

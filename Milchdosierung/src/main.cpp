@@ -34,11 +34,6 @@ int main()
     // led on nucleo board
     DigitalOut user_led(LED1);
 
-    // additional led
-    // create DigitalOut object to command extra led, you need to add an additional resistor, e.g. 220...500 Ohm
-    // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via the resistor
-    DigitalOut led1(PB_9);
-
     // --- adding variables and objects and applying functions starts here ---
 
     // create object to enable power electronics for the dc motors
@@ -89,15 +84,13 @@ int main()
 
             // --- code that runs when the blue button was pressed goes here ---
 
-            // visual feedback that the main task is executed, setting this once would actually be enough
-            led1 = 1;
 
             // enable hardwaredriver dc motors: 0 -> disabled, 1 -> enabled
             enable_motors = 1;
 
             // pwm_M1.write(0.75f); // apply 6V to the motor
-            // motor_M2.setVelocity(motor_M2.getMaxVelocity());
-            motor_M3.setRotation(1.0f);
+            // motor_M3.setVelocity(motor_M3.getMaxVelocity());
+            motor_M3.setRotation(10.0f);
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
@@ -106,7 +99,6 @@ int main()
                 // --- variables and objects that should be reset go here ---
 
                 // reset variables and objects
-                led1 = 0;
                 enable_motors = 0;
             }
         }

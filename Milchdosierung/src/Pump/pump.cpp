@@ -3,15 +3,17 @@
 
 Pump::Pump(PinName pwm_pin,
                    PinName direction_pin,
-                   float voltage_max,
-                   float pwm_min) : m_Thread(osPriorityNormal),
-                                    m_motor(pwm_pin, direction_pin, 1.0f, 1.0f, voltage_max, pwm_min)
+                   float voltage_min,
+                   float voltage_max) : m_Thread(osPriorityNormal),
+                                        m_motor(pwm_pin, direction_pin, 1.0f, 1.0f, voltage_min/voltage_max, voltage_max)
 {
 
     // initialise control signals
     m_velocity = voltage_max;
     setAccelerationStart(voltage_max * 0.5f);
     setAccelerationStop(voltage_max * 10.0f);
+
+    m_motor.enableMotionPlanner();
 
     // start thread
     m_Thread.start(callback(this, &Pump::threadTask));
@@ -53,7 +55,7 @@ void Pump::setAccelerationStart(float acceleration)
 {
     m_accelerationStart = acceleration;
 }
-float Pump::getMaxAccelerationStart() const
+float Pump::getAccelerationStart() const
 {
     return m_accelerationStart;
 }
@@ -63,9 +65,19 @@ void Pump::setAccelerationStop(float acceleration)
 {
     m_accelerationStop = acceleration;
 }
-float Pump::getMaxAccelerationStop() const
+float Pump::getAccelerationStop() const
 {
     return m_accelerationStop;
+}
+
+
+void Pump::setVoltageMin(float voltage_min)
+{
+    m_voltageMin = voltage_min;
+}
+float Pump::getVoltageMin() const
+{
+    return m_voltageMin;
 }
 
 

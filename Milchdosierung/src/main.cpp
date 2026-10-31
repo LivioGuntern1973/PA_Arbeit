@@ -27,22 +27,17 @@ int main()
     DigitalOut user_led(LED1); // led on nucleo board
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS); // create object to enable power electronics for the dc motors
 
+
+    // motor M1
+    const float voltage_max = 12.0f; // maximum voltage of battery packs
+    const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
+    Pump pump1(PB_PWM_M1, PB_DIR_M1, voltage_min, voltage_max);
+    enable_motors = 1;
+
     // state machine
     Timer step_duration_timer;
     uint16_t step = 0;
     uint16_t step_old = 9999; // set above 0 to detect a step change at startup
-
-    // motor M1
-    const float voltage_max = 12.0f; // maximum voltage of battery packs
-    const float gear_ratio_M1 = 25.0f; // gear ratio
-    const float kn_M1 = 180.0f / 12.0f;  // motor constant [rpm/V]
-    const float pwm_min_M1 = 0.12f;  // minimum pwm at slow speed [%]
-    DCMotorOpenLoop motor_M1(PB_PWM_M1, PB_DIR_M1,gear_ratio_M1, kn_M1, voltage_max, pwm_min_M1);
-    // enable the motion planner for smooth movement
-    motor_M1.enableMotionPlanner();
-    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
-    motor_M1.setMaxAcceleration(0.5f);
-    enable_motors = 1;
 
 
     main_task_timer.start();
@@ -53,7 +48,7 @@ int main()
         
         switch (step) {
             case 0:
-                motor_M1.setVelocity(0.0f);
+                
 
                 if (user_button == 0)
                 {
@@ -61,7 +56,7 @@ int main()
                 }
                 break;
             case 1:
-                motor_M1.setVelocity(-1.0f);
+                pump1.start();
 
                 if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000)
                 {
@@ -69,23 +64,15 @@ int main()
                 }
                 break;
             case 2:
-                motor_M1.setVelocity(0.0f);
+                pump1.stop();
 
-                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 5000)
+                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 1000)
                 {
                     step = 3;
                 }
                 break;
-            case 3:
-                motor_M1.setVelocity(0.5f);
-
-                if (duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000)
-                {
-                    step = 0;
-                }
-                break;
             default:
-                ;
+                step = 0;
         }
 
         // detect a change of the step

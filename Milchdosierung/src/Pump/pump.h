@@ -43,13 +43,13 @@ public:
      * @brief Construct a new Pump object.
      *
      * @param pwm_pin The pin name for PWM control of the motor.
-     * @param voltage_max The maximum voltage for the motor (default: 12.0f).
-     * @param pwm_min Minimum PWM magnitude for nonzero commands, from 0.0f to 1.0f.
+     * @param voltage_min The minimum voltage for the motor (default: 0.0f).
+     * @param voltage_max The maximum voltage for the motor (default: 24.0f).
      */
     explicit Pump(PinName pwm_pin,
                   PinName direction_pin,
-                  float voltage_max = 12.0f,
-                  float pwm_min = 0.0f);
+                  float voltage_min = 0.0f,
+                  float voltage_max = 24.0f);
 
     /**
      * @brief Destroy the Pump object.
@@ -92,7 +92,7 @@ public:
      *
      * @return float The maximum acceleration for starting in volts per second.
      */
-    float getMaxAccelerationStart() const;
+    float getAccelerationStart() const;
 
     /**
      * @brief Set the acceleration for stopping the pump.
@@ -106,7 +106,21 @@ public:
      *
      * @return float The maximum acceleration for stopping in volts per second.
      */
-    float getMaxAccelerationStop() const;
+    float getAccelerationStop() const;
+
+    /**
+     * @brief Set the minimum voltage for the motor.
+     *
+     * @param acceleration The minimum voltage for the motor in volts.
+     */
+    void setVoltageMin(float voltage_min);
+
+    /**
+     * @brief Get the minimum voltage for the motor.
+     *
+     * @return float The minimum voltage for the motor in volts.
+     */
+    float getVoltageMin() const;
 
 private:
     static constexpr int64_t PERIOD_MUS = 50000;
@@ -121,6 +135,7 @@ private:
     float m_velocity;
     float m_accelerationStart;
     float m_accelerationStop;
+    float m_voltageMin;
 
     void threadTask();
     void sendThreadFlag();

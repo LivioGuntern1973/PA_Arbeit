@@ -97,7 +97,7 @@ int main()
                 // --- variables and objects that should be reset go here ---
 
                 // reset variables and objects
-                motor_M3.setVelocity(0.0f);
+                motor_M3.setVelocity(-2.0f);
             }
         }
 

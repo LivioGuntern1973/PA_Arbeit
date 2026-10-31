@@ -14,11 +14,11 @@
  *
  * Example:
  * ```
- * Pump pump(PWM_PIN, DIRECTION_PIN, GEAR_RATIO, KN, VOLTAGE_MAX);
- * pump.setVelocity(1.5f); // command velocity to 1.5 rotations per second
- * float currentVelocity = pump.getVelocity(); // read current velocity
- * pump.setRotation(5.0f); // command rotation to 5
- * pump.getRotation(); // read current rotation
+ * const float voltage_max = 12.0f; // maximum voltage of battery packs
+ * const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
+ * Pump pump1(PB_PWM_M1, PB_DIR_M1, voltage_min, voltage_max);
+ * enable_motors = 1;
+ * pump1.start();
  * ```
  *
  * @author S. Geering

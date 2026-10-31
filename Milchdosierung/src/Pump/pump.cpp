@@ -11,7 +11,7 @@ Pump::Pump(PinName pwm_pin,
     // initialise control signals
     m_velocity = voltage_max;
     m_accelerationStart = voltage_max * 0.5f;
-    m_accelerationStop = voltage_max * 10.0f;
+    m_accelerationStop = voltage_max * 5.0f;
 
     m_motor.enableMotionPlanner();
 

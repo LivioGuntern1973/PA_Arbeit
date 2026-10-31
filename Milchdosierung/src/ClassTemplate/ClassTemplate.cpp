@@ -1,7 +1,7 @@
-#include "Pump.h"
+#include "ClassTemplate.h"
 
 
-Pump::Pump(PinName pwm_pin,
+ClassTemplate::ClassTemplate(PinName pwm_pin,
                    PinName direction_pin,
                    float voltage_max,
                    float pwm_min) : m_Thread(osPriorityNormal),
@@ -25,52 +25,52 @@ Pump::Pump(PinName pwm_pin,
     setMaxAcceleration(m_acceleration_max);
 
     // start thread
-    m_Thread.start(callback(this, &Pump::threadTask));
+    m_Thread.start(callback(this, &ClassTemplate::threadTask));
 
     // attach sendThreadFlag() to ticker so that sendThreadFlag() is called periodically, which signals the thread to execute
-    m_Ticker.attach(callback(this, &Pump::sendThreadFlag), std::chrono::microseconds{PERIOD_MUS});
+    m_Ticker.attach(callback(this, &ClassTemplate::sendThreadFlag), std::chrono::microseconds{PERIOD_MUS});
 }
 
-Pump::~Pump()
+ClassTemplate::~ClassTemplate()
 {
     m_Ticker.detach();
     m_Thread.terminate();
 }
 
-void Pump::setVelocity(float velocity)
+void ClassTemplate::setVelocity(float velocity)
 {
     m_velocity_setpoint = velocity;
 }
 
-float Pump::getVelocity() const
+float ClassTemplate::getVelocity() const
 {
     return m_motor.getVoltage();
 }
 
-float Pump::getVoltage() const
+float ClassTemplate::getVoltage() const
 {
     return m_motor.getVoltage();
 }
 
-void Pump::setMaxAcceleration(float acceleration)
+void ClassTemplate::setMaxAcceleration(float acceleration)
 {
     m_motor.setMaxAcceleration(acceleration);
 }
 
-float Pump::getMaxAcceleration() const
+float ClassTemplate::getMaxAcceleration() const
 {
     return m_motor.getMaxAcceleration();
 }
 
 
-void Pump::threadTask()
+void ClassTemplate::threadTask()
 {
     while (true) {
         ThisThread::flags_wait_any(m_ThreadFlag); // wait until the ticker starts the next cycle
         // insert code for cyclic work
     }
 }
-void Pump::sendThreadFlag()
+void ClassTemplate::sendThreadFlag()
 {
     // set the thread flag to trigger the thread task
     m_Thread.flags_set(m_ThreadFlag);

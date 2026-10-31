@@ -7,22 +7,11 @@ Pump::Pump(PinName pwm_pin,
                    float pwm_min) : m_Thread(osPriorityNormal),
                                     m_motor(pwm_pin, direction_pin, 1.0f, 1.0f, voltage_max, pwm_min)
 {
- 
-
 
     // initialise control signals
-    m_rotation_initial = 0.0f;
-    m_rotation_target = m_rotation_initial;
-    m_rotation_setpoint = m_rotation_initial;
-    m_rotation = m_rotation_initial;
-    m_velocity_target = 0.0f;
-    m_velocity_setpoint = 0.0f;
-    m_velocity = 0.0f;
-    m_voltage = 0.0f;
-    m_pwm = 0.0f;
-
-    m_acceleration_max = 400.0f;
-    setMaxAcceleration(m_acceleration_max);
+    m_velocity = voltage_max;
+    setAccelerationStart(voltage_max * 0.5f);
+    setAccelerationStop(voltage_max * 10.0f);
 
     // start thread
     m_Thread.start(callback(this, &Pump::threadTask));
@@ -37,29 +26,46 @@ Pump::~Pump()
     m_Thread.terminate();
 }
 
+void Pump::start(void)
+{
+    m_motor.setMaxAcceleration(m_accelerationStart);
+    m_motor.setVelocity(m_velocity);
+}
+
+void Pump::stop(void)
+{
+    m_motor.setMaxAcceleration(m_accelerationStop);
+    m_motor.setVelocity(0.0f);
+}
+
+
 void Pump::setVelocity(float velocity)
 {
-    m_velocity_setpoint = velocity;
+    m_velocity = velocity;
 }
-
 float Pump::getVelocity() const
 {
-    return m_motor.getVoltage();
+    return m_velocity;
 }
 
-float Pump::getVoltage() const
+
+void Pump::setAccelerationStart(float acceleration)
 {
-    return m_motor.getVoltage();
+    m_accelerationStart = acceleration;
+}
+float Pump::getMaxAccelerationStart() const
+{
+    return m_accelerationStart;
 }
 
-void Pump::setMaxAcceleration(float acceleration)
-{
-    m_motor.setMaxAcceleration(acceleration);
-}
 
-float Pump::getMaxAcceleration() const
+void Pump::setAccelerationStop(float acceleration)
 {
-    return m_motor.getMaxAcceleration();
+    m_accelerationStop = acceleration;
+}
+float Pump::getMaxAccelerationStop() const
+{
+    return m_accelerationStop;
 }
 
 

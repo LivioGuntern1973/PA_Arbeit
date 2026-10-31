@@ -1,8 +1,8 @@
 /**
- * @file Pump.h
- * @brief This file defines the Pump class, which is used for controlling a DC motor.
+ * @file ClassTemplate.h
+ * @brief This file defines the ClassTemplate class, which is used for controlling a DC motor.
  *
- * The Pump class provides functionality to control a pump
+ * The ClassTemplate class provides functionality to control a ClassTemplate
  *
  * @dependencies
  * This class relies on external components:
@@ -10,82 +10,82 @@
  * - Mbed
  *
  * Usage:
- * To use the Pump class, create an instance with the required motor parameters.
+ * To use the ClassTemplate class, create an instance with the required motor parameters.
  *
  * Example:
  * ```
- * Pump pump(PWM_PIN, DIRECTION_PIN, GEAR_RATIO, KN, VOLTAGE_MAX);
- * pump.setVelocity(1.5f); // command velocity to 1.5 rotations per second
- * float currentVelocity = pump.getVelocity(); // read current velocity
- * pump.setRotation(5.0f); // command rotation to 5
- * pump.getRotation(); // read current rotation
+ * ClassTemplate classTemplate(PWM_PIN, DIRECTION_PIN, GEAR_RATIO, KN, VOLTAGE_MAX);
+ * ClassTemplate.setVelocity(1.5f); // command velocity to 1.5 rotations per second
+ * float currentVelocity = ClassTemplate.getVelocity(); // read current velocity
+ * ClassTemplate.setRotation(5.0f); // command rotation to 5
+ * ClassTemplate.getRotation(); // read current rotation
  * ```
  *
  * @author S. Geering
  */
 
 
-#ifndef PUMP_H_
-#define PUMP_H_
+#ifndef ClassTemplate_H_
+#define ClassTemplate_H_
 
 #include "Mbed.h"
 #include <DCMotorOpenLoop\DCMotorOpenLoop.h>
 #include "PESBoardPinMap.h"
 
     #ifndef NEW_PES_BOARD_VERSION
-    #error "Pump class works only with new PES-Board version!"
+    #error "ClassTemplate class works only with new PES-Board version!"
     #endif
 
-class Pump
+class ClassTemplate
 {
 public:
     /**
-     * @brief Construct a new Pump object.
+     * @brief Construct a new ClassTemplate object.
      *
      * @param pwm_pin The pin name for PWM control of the motor.
      * @param voltage_max The maximum voltage for the motor (default: 12.0f).
      * @param pwm_min Minimum PWM magnitude for nonzero commands, from 0.0f to 1.0f.
      */
-    explicit Pump(PinName pwm_pin,
+    explicit ClassTemplate(PinName pwm_pin,
                   PinName direction_pin,
                   float voltage_max = 12.0f,
                   float pwm_min = 0.0f);
 
     /**
-     * @brief Destroy the Pump object.
+     * @brief Destroy the ClassTemplate object.
      */
-    virtual ~Pump();
+    virtual ~ClassTemplate();
 
     /**
-     * @brief Set the target velocity of the pump.
+     * @brief Set the target velocity of the ClassTemplate.
      *
      * @param velocity The target velocity in volts.
      */
     void setVelocity(float velocity);
 
     /**
-     * @brief Get the current velocity of the pump.
+     * @brief Get the current velocity of the ClassTemplate.
      *
      * @return float The current velocity in volts.
      */
     float getVelocity() const;
 
     /**
-     * @brief Get the current voltage applied to the pump.
+     * @brief Get the current voltage applied to the ClassTemplate.
      *
      * @return float The current voltage in volts.
      */
     float getVoltage() const;
 
     /**
-     * @brief Set the maximum acceleration for the pump.
+     * @brief Set the maximum acceleration for the ClassTemplate.
      *
      * @param acceleration The maximum acceleration in volts per second.
      */
     void setMaxAcceleration(float acceleration);
 
     /**
-     * @brief Get the maximum acceleration for the pump.
+     * @brief Get the maximum acceleration for the ClassTemplate.
      *
      * @return float The maximum acceleration in volts per second.
      */
@@ -119,7 +119,7 @@ private:
     void sendThreadFlag();
 };
 
-#endif /* PUMP_H_ */
+#endif /* ClassTemplate_H_ */
 
 
 

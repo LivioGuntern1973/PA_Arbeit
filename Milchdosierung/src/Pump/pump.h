@@ -57,6 +57,16 @@ public:
     virtual ~Pump();
 
     /**
+     * @brief Start the pump.
+     */
+    void start(void);
+
+    /**
+     * @brief Stop the pump.
+     */
+    void stop(void);
+
+    /**
      * @brief Set the target velocity of the pump.
      *
      * @param velocity The target velocity in volts.
@@ -71,25 +81,32 @@ public:
     float getVelocity() const;
 
     /**
-     * @brief Get the current voltage applied to the pump.
+     * @brief Set the acceleration for starting the pump.
      *
-     * @return float The current voltage in volts.
+     * @param acceleration The acceleration in for starting volts per second.
      */
-    float getVoltage() const;
+    void setAccelerationStart(float acceleration);
 
     /**
-     * @brief Set the maximum acceleration for the pump.
+     * @brief Get the maximum acceleration for starting the pump.
      *
-     * @param acceleration The maximum acceleration in volts per second.
+     * @return float The maximum acceleration for starting in volts per second.
      */
-    void setMaxAcceleration(float acceleration);
+    float getMaxAccelerationStart() const;
 
     /**
-     * @brief Get the maximum acceleration for the pump.
+     * @brief Set the acceleration for stopping the pump.
      *
-     * @return float The maximum acceleration in volts per second.
+     * @param acceleration The acceleration for stopping in volts per second.
      */
-    float getMaxAcceleration() const;
+    void setAccelerationStop(float acceleration);
+
+    /**
+     * @brief Get the maximum acceleration for stopping the pump.
+     *
+     * @return float The maximum acceleration for stopping in volts per second.
+     */
+    float getMaxAccelerationStop() const;
 
 private:
     static constexpr int64_t PERIOD_MUS = 50000;
@@ -99,21 +116,11 @@ private:
     ThreadFlag m_ThreadFlag;
     DCMotorOpenLoop m_motor;
 
-    // motor parameters
-    float m_velocity_max;
-    float m_acceleration_max;
 
     // signals
-    float m_rotation_initial;
-    float m_rotation_target;
-    float m_rotation_setpoint;
-    float m_rotation;
-    float m_velocity_target;
-    float m_velocity_setpoint;
     float m_velocity;
-    float m_voltage;
-    float m_pwm;
-    float m_pwm_min;
+    float m_accelerationStart;
+    float m_accelerationStop;
 
     void threadTask();
     void sendThreadFlag();

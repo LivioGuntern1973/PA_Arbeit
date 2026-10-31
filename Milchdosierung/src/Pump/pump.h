@@ -96,8 +96,8 @@ private:
 
     Thread m_Thread;
     Ticker m_Ticker;
-    DCMotorOpenLoop m_motor;
     ThreadFlag m_ThreadFlag;
+    DCMotorOpenLoop m_motor;
 
     // motor parameters
     float m_velocity_max;

@@ -66,8 +66,8 @@ float Pump::getMaxAcceleration() const
 void Pump::threadTask()
 {
     while (true) {
-        ThisThread::flags_wait_any(m_ThreadFlag);
-
+        ThisThread::flags_wait_any(m_ThreadFlag); // wait until the ticker starts the next cycle
+        // insert code for cyclic work
     }
 }
 void Pump::sendThreadFlag()

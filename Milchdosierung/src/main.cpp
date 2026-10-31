@@ -143,6 +143,17 @@ static int probeI2cAddress(I2C &bus)
     return ack;
 }
 
+static const char *i2cResultName(int result)
+{
+    // Mbed I2C::write(int) liefert 0=NACK, 1=ACK, 2=Timeout.
+    switch (result) {
+        case 0: return "NACK/kein Slave";
+        case 1: return "ACK";
+        case 2: return "TIMEOUT";
+        default: return "I2C-Fehler";
+    }
+}
+
 static void sendUartTestMessages()
 {
     static const char piMessage[] = "PINMAP TEST UART4 PC10 TX\r\n";
@@ -157,10 +168,10 @@ static void reportState(int i2c1Ack, int i2c3Ack)
     printf("FAULT PC0..3=%d%d%d%d | BTN PA4/PA6/PA7/PB12=%d%d%d%d (0=gedr.) | ",
            motor1Fault.read(), motor2Fault.read(), motor3Fault.read(), motor4Fault.read(),
            button1.read(), button2.read(), button3.read(), button4.read());
-    printf("TIM2_CH1=%lu | I2C1=%s I2C3=%s | TIM1-PWM-Muster=%u\r\n",
+    printf("TIM2_CH1=%lu | I2C1=%s(%d) I2C3=%s(%d) | TIM1-PWM-Muster=%u\r\n",
            static_cast<unsigned long>(pulses),
-           i2c1Ack ? "ACK" : "NACK/kein Slave",
-           i2c3Ack ? "ACK" : "NACK/kein Slave",
+           i2cResultName(i2c1Ack), i2c1Ack,
+           i2cResultName(i2c3Ack), i2c3Ack,
            pwmPhase % 3U);
     fflush(stdout);
 }

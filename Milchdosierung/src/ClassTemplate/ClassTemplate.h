@@ -31,6 +31,7 @@
 #include "Mbed.h"
 #include "ThreadFlag.h"
 #include "PESBoardPinMap.h"
+#include <MilkMate.h>
 
     #ifndef NEW_PES_BOARD_VERSION
     #error "ClassTemplate class works only with new PES-Board version!"

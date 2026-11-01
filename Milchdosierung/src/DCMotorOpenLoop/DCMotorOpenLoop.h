@@ -35,6 +35,7 @@
 #define DC_MOTOR_OPEN_LOOP_H_
 
 #include <math.h>
+#include <MilkMate.h>
 
 
 #include "FastPWM.h"
@@ -325,6 +326,7 @@ private:
     float m_voltage;
     float m_pwm;
     float m_pwm_min;
+    
 
     void threadTask();
     void sendThreadFlag();

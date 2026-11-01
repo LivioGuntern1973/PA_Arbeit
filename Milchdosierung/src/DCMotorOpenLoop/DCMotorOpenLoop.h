@@ -35,7 +35,6 @@
 #define DC_MOTOR_OPEN_LOOP_H_
 
 #include <math.h>
-#include <MilkMate.h>
 
 
 #include "FastPWM.h"

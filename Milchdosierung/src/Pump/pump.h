@@ -16,7 +16,7 @@
  * ```
  * const float voltage_max = 12.0f; // maximum voltage of battery packs
  * const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
- * Pump pump1(PB_PWM_M1, PB_DIR_M1, voltage_min, voltage_max);
+ * Pump pump1(PB_PWM_M1, PB_DIR_M1, PUMP1_ERROR, voltage_min, voltage_max);
  * enable_motors = 1;
  * pump1.start();
  * ```
@@ -31,6 +31,9 @@
 #include "Mbed.h"
 #include <DCMotorOpenLoop\DCMotorOpenLoop.h>
 #include "PESBoardPinMap.h"
+
+#include <MilkMate.h>
+#include "DebounceIn.h"
 
     #ifndef NEW_PES_BOARD_VERSION
     #error "Pump class works only with new PES-Board version!"
@@ -48,6 +51,7 @@ public:
      */
     explicit Pump(PinName pwm_pin,
                   PinName direction_pin,
+                  PinName error_pin,
                   float voltage_min = 0.0f,
                   float voltage_max = 24.0f);
 
@@ -122,6 +126,15 @@ public:
      */
     float getVoltageMin() const;
 
+    /**
+     * @brief Check for errors.
+     *
+     * @return uint16_t The current error code.
+     *                  0: no error
+     *                  1: hardware fault (supply undervoltage, charge pump undervoltage, output overcurrent, or device overtemperature)
+     */
+    uint16_t getError(void);
+
 private:
     static constexpr int64_t PERIOD_MUS = 50000;
 
@@ -129,6 +142,7 @@ private:
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
     DCMotorOpenLoop m_motor;
+    DigitalIn m_ErrorPin;
 
 
     // signals

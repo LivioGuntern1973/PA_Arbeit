@@ -14,7 +14,7 @@ DCMotorOpenLoop::DCMotorOpenLoop(PinName pwm_pin,
 #endif
                                                        m_Thread(osPriorityHigh1)
 #if PERFORM_CHIRP_MEAS
-                                                       , m_BufferedSerial(USBTX, USBRX)
+                                                     , m_BufferedSerial(USBTX, USBRX)
 #endif
 {
     // motor parameters

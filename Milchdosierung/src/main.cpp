@@ -83,6 +83,9 @@ int main()
                 step = 0;
         }
 
+        //printf("%d\n", pump1.getError());
+
+
         // detect a change of the step
         if (step != step_old)
         {
@@ -91,7 +94,7 @@ int main()
             step_old = step;
         }
         
-        //printf("%d\n", step);
+        printf("%d\n", step);
 
 
         // user button edge

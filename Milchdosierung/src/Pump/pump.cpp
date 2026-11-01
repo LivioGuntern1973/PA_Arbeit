@@ -101,7 +101,7 @@ void Pump::threadTask()
         ThisThread::flags_wait_any(m_ThreadFlag); // wait until the ticker starts the next cycle
         // insert code for cyclic work
         float val = m_motor.getPWM();
-        printf("%f\n", val);
+        //printf("%f\n", val);
     }
 }
 void Pump::sendThreadFlag()

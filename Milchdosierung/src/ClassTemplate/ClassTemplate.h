@@ -29,7 +29,7 @@
 #define ClassTemplate_H_
 
 #include "Mbed.h"
-#include <DCMotorOpenLoop\DCMotorOpenLoop.h>
+#include "ThreadFlag.h"
 #include "PESBoardPinMap.h"
 
     #ifndef NEW_PES_BOARD_VERSION
@@ -63,41 +63,12 @@ public:
      */
     void setVelocity(float velocity);
 
-    /**
-     * @brief Get the current velocity of the ClassTemplate.
-     *
-     * @return float The current velocity in volts.
-     */
-    float getVelocity() const;
-
-    /**
-     * @brief Get the current voltage applied to the ClassTemplate.
-     *
-     * @return float The current voltage in volts.
-     */
-    float getVoltage() const;
-
-    /**
-     * @brief Set the maximum acceleration for the ClassTemplate.
-     *
-     * @param acceleration The maximum acceleration in volts per second.
-     */
-    void setMaxAcceleration(float acceleration);
-
-    /**
-     * @brief Get the maximum acceleration for the ClassTemplate.
-     *
-     * @return float The maximum acceleration in volts per second.
-     */
-    float getMaxAcceleration() const;
-
 private:
     static constexpr int64_t PERIOD_MUS = 50000;
 
     Thread m_Thread;
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
-    DCMotorOpenLoop m_motor;
 
     // motor parameters
     float m_velocity_max;

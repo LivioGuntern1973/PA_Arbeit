@@ -4,8 +4,7 @@
 ClassTemplate::ClassTemplate(PinName pwm_pin,
                    PinName direction_pin,
                    float voltage_max,
-                   float pwm_min) : m_Thread(osPriorityNormal),
-                                    m_motor(pwm_pin, direction_pin, 1.0f, 1.0f, voltage_max, pwm_min)
+                   float pwm_min) : m_Thread(osPriorityNormal)
 {
  
 
@@ -22,7 +21,6 @@ ClassTemplate::ClassTemplate(PinName pwm_pin,
     m_pwm = 0.0f;
 
     m_acceleration_max = 400.0f;
-    setMaxAcceleration(m_acceleration_max);
 
     // start thread
     m_Thread.start(callback(this, &ClassTemplate::threadTask));
@@ -40,26 +38,6 @@ ClassTemplate::~ClassTemplate()
 void ClassTemplate::setVelocity(float velocity)
 {
     m_velocity_setpoint = velocity;
-}
-
-float ClassTemplate::getVelocity() const
-{
-    return m_motor.getVoltage();
-}
-
-float ClassTemplate::getVoltage() const
-{
-    return m_motor.getVoltage();
-}
-
-void ClassTemplate::setMaxAcceleration(float acceleration)
-{
-    m_motor.setMaxAcceleration(acceleration);
-}
-
-float ClassTemplate::getMaxAcceleration() const
-{
-    return m_motor.getMaxAcceleration();
 }
 
 

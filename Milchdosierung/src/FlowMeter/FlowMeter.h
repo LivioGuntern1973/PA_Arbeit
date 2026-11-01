@@ -29,6 +29,7 @@
 #define FLOW_METER_H_
 
 #include "Mbed.h"
+#include "ThreadFlag.h"
 #include "PESBoardPinMap.h"
 
     #ifndef NEW_PES_BOARD_VERSION
@@ -109,13 +110,13 @@ public:
     uint8_t getBubbleDetectionLevel() const;
 
 private:
-    static constexpr int64_t PERIOD_MUS = 10000;
-    static constexpr uint32_t THREAD_FLAG = 1U;
+    static constexpr int64_t PERIOD_MUS = 20000;
     I2C m_i2c;
     uint16_t m_i2cAddress;
 
     Thread m_Thread;
     Ticker m_Ticker;
+    ThreadFlag m_ThreadFlag;
 
     // motor parameters
     float m_velocity_max;

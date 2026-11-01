@@ -100,7 +100,7 @@ void FlowMeter::threadTask()
     uint8_t data[24];
 
     while (true) {
-        ThisThread::flags_wait_any(THREAD_FLAG);
+        ThisThread::flags_wait_any(m_ThreadFlag);
 
         // Messwert-Block anfordern
         if (m_i2c.write(address, command, sizeof(command), false) != 0) {
@@ -145,5 +145,5 @@ void FlowMeter::threadTask()
 
 void FlowMeter::sendThreadFlag()
 {
-    m_Thread.flags_set(THREAD_FLAG);
+    m_Thread.flags_set(m_ThreadFlag);
 }

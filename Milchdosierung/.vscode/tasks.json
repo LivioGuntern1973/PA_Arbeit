@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Upload Nucleo Pinmapping-Test",
+            "type": "process",
+            "command": "${env:USERPROFILE}\\.platformio\\penv\\Scripts\\platformio.exe",
+            "args": [
+                "run",
+                "--environment",
+                "nucleo_f446re_pin_test",
+                "--target",
+                "upload"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

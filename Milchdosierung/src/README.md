@@ -9,9 +9,11 @@ Ein PlatformIO-Testprogramm fuer STM32Cube/HAL. In PlatformIO die Umgebung **`nu
 3. Nucleo-F446RE per USB am ST-LINK anschliessen.
 4. **Build** und danach **Upload** ausfuehren.
 5. Den PlatformIO Serial Monitor mit **115200 Baud, 8N1** oeffnen.
-6. `help` eingeben. Vor jedem Verdrahtungsschritt fordert das Programm `go` an.
+6. Nach Reset muss `=== PINTEST-HAL / NUCLEO-F446RE ===` erscheinen, gefolgt von `nucleo>`. `help` eingeben und die Antwort abwarten, bevor der naechste Befehl gesendet wird.
+7. Vor jedem Verdrahtungsschritt fordert das Programm `go` an.
 
 Die Zeilenendung im Monitor sollte LF sein. Der Monitor benutzt PA2/PA3 (USART2), die bei diesem Nucleo fuer den ST-LINK VCP vorgesehen sind.
+Eingegebene Zeichen werden zurueckgespiegelt. Falls nach Reset nur eine andere oder unvollstaendige Startmeldung erscheint, ist wahrscheinlich eine andere PlatformIO-Umgebung oder ein anderer COM-Port aktiv.
 
 ## Befehle
 

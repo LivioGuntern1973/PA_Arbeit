@@ -176,14 +176,35 @@ static void console_read_line(char *buffer, size_t capacity)
     size_t used = 0U;
     for (;;) {
         uint8_t ch;
-        if (HAL_UART_Receive(&huart2, &ch, 1U, HAL_MAX_DELAY) != HAL_OK) continue;
+        HAL_StatusTypeDef status = HAL_UART_Receive(&huart2, &ch, 1U, 100U);
+        if (status == HAL_TIMEOUT) continue;
+        if (status != HAL_OK) {
+            uint32_t error = HAL_UART_GetError(&huart2);
+            /* On STM32F4, reading SR then DR clears PE/FE/NE/ORE. */
+            __HAL_UART_CLEAR_PEFLAG(&huart2);
+            huart2.ErrorCode = HAL_UART_ERROR_NONE;
+            buffer[0] = '\0';
+            console_printf("\r\nUSART2 RX-Fehler 0x%08lX; Eingabe verworfen.\r\n",
+                           (unsigned long)error);
+            return;
+        }
         if (ch == '\r') continue;
         if (ch == '\n') {
             buffer[used] = '\0';
             console_write("\r\n");
             return;
         }
-        if (used + 1U < capacity) buffer[used++] = (char)ch;
+        if (ch == '\b' || ch == 0x7FU) {
+            if (used > 0U) {
+                --used;
+                console_write("\b \b");
+            }
+            continue;
+        }
+        if (used + 1U < capacity) {
+            buffer[used++] = (char)ch;
+            (void)HAL_UART_Transmit(&huart2, &ch, 1U, 100U);
+        }
     }
 }
 
@@ -690,7 +711,8 @@ int main(void)
     SystemClock_Config();
     dwt_init();
     console_init();
-    console_write("Nucleo-F446RE Pinmapping-Test gestartet (USART2 / ST-LINK VCP, 115200 8N1).\r\n");
+    console_write("\r\n=== PINTEST-HAL / NUCLEO-F446RE ===\r\n");
+    console_write("USART2 ueber ST-LINK VCP, 115200 8N1. Eingaben werden zurueckgespiegelt.\r\n");
     console_write("'help' zeigt die Befehle. Vor Tests angeschlossene Treiber/Module entfernen.\r\n");
 
     char line[64];

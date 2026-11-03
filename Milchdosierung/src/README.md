@@ -1,52 +1,53 @@
-# Automatischer Pin-Mapping-Test fuer NUCLEO-F446RE
+# Nucleo-F446RE Pinmapping-Test
 
-Das Projekt initialisiert die Pins aus dem Pinmapping und laeuft danach automatisch. Es ist fuer das nackte Nucleo ohne angeschlossene Motoren, Flowmeter, Display oder sonstige Module gedacht.
+Ein PlatformIO-Projekt fuer den STM32Cube/HAL-Framework. Die serielle Kommandozeile laeuft ueber USART2 und den ST-LINK-Virtual-COM-Port.
 
-## Ablauf
+## Start in VS Code / PlatformIO
 
-- Motor-PWM auf TIM1 wird mit 1 kHz und vier unterschiedlichen Tastverhaeltnissen ausgegeben. Die Tastverhaeltnisse wechseln etwa alle 5 Sekunden.
-- Die vier DIR-Ausgaenge wechseln etwa einmal pro Sekunde. PB9 Motor Enable bleibt im inaktiven Pegel.
-- PC8/TIM3_CH3 gibt ein 1-kHz-PWM-Signal aus. Das ist nur ein Pin-/AF-Test und kein WS2811-Datenprotokoll.
-- UART4 und USART6 senden regelmaessig Testtexte. Auf den RX-Leitungen werden eingehende Bytes abgefragt.
-- Beide I2C-Interfaces senden regelmaessig eine Adressphase fuer 7-Bit-Adresse 0x20. Ohne Slave ist NACK normal. Es wird kein Register beschrieben.
-- PA5/TIM2_CH1 ist als Input Capture fuer den Flowmeter-Pulszaehler konfiguriert.
-- PC0-PC3 werden als Fehler-Eingaenge gelesen. PA4, PA6, PA7 und PB12 werden mit Pull-up gelesen.
-- Statusmeldungen erscheinen ueber Mbed-stdio auf dem ST-Link-Virtual-COM-Port mit 115200 Baud. PA13/PA14 bleiben fuer SWD unangetastet.
+1. In VS Code den Ordner `nucleo_f446re_pin_test` als PlatformIO-Projekt oeffnen.
+2. Nucleo-F446RE per USB am ST-LINK anschliessen.
+3. In PlatformIO **Build** und danach **Upload** ausfuehren.
+4. Den PlatformIO Serial Monitor mit **115200 Baud, 8N1** oeffnen.
+5. `help` eingeben. Ein Test startet mit seinem Befehl; vor jedem Verdrahtungsschritt fordert das Programm `go` an.
 
-## PlatformIO starten
+Die Zeilenendung im Monitor sollte LF sein. Der Monitor benutzt PA2/PA3 (USART2), die bei diesem Nucleo fuer den ST-LINK VCP vorgesehen sind.
 
-In VS Code kannst du **Build** und danach **Upload** in der PlatformIO-Leiste ausfuehren. Alternativ im Projektordner:
+## Befehle
 
-```text
-pio run
-pio run -t upload
-```
+| Befehl | Pruefung |
+| --- | --- |
+| `map` | CN-Pin-Uebersicht |
+| `gpio` | DIR-, Enable- und optionale Display-Steuerpins gegen PA4/CN7-32 |
+| `spi3` | SPI3 sendet Daten auf MOSI und vergleicht den Ruecklauf auf MISO |
+| `uart4` | UART4 sendet Bytes von PA0/TX und vergleicht sie auf PA1/RX |
+| `i2c1` | I2C1 als Master, I2C3 als Slave; schreibt und liest Testbytes |
+| `i2c3` | I2C3 als Master, I2C1 als Slave; Gegenrichtung |
+| `pwm` | TIM1-Ausgaenge und PC8/TIM3 einzeln als 1-kHz-/50-%-Signal |
+| `flow` | TIM1-Test-PWM an PA15/TIM2_CH1; Frequenz wird per Input Capture gemessen |
+| `inputs` | Eingangspegel live anzeigen; mit `q` beenden |
+| `led` | User LED an PA5 blinken lassen |
+| `all` | GPIO, SPI, UART4, I2C1/3, PWM und Flow nacheinander ausfuehren |
 
-Oeffne danach den ST-Link-Seriellport mit 115200 Baud, 8N1. Es gibt keine Befehle; der Test laeuft von selbst.
+## Jumper und Messpunkte
 
-## Was ohne Zusatzhardware zu erwarten ist
+| Test | Jumper / Messung |
+| --- | --- |
+| `gpio` | Jeweils den im Monitor genannten Ausgang mit **PA4/CN7-32** verbinden. Zwischen den Schritten den Jumper umstecken. |
+| `spi3` | **PC12/MOSI/CN7-3** nach **PC11/MISO/CN7-2**; **PC10/SCK/CN7-1** bei Bedarf mit Oszi messen |
+| `uart4` | **PA0/TX/CN7-28** nach **PA1/RX/CN7-30** |
+| `i2c1` und `i2c3` | **PB7/SDA/CN7-21** nach **PC9/SDA/CN10-1**, sowie **PB6/SCL/CN10-17** nach **PA8/SCL/CN10-23**. Beide Jumper fuer beide Richtungen stecken lassen. |
+| `pwm` | Jeden im Monitor genannten PWM-Ausgang nach **PA4/CN7-32** fuer die digitale Rueckmeldung; alternativ mit dem Oszilloskop am genannten Ausgang messen. |
+| `flow` | **PA9/TIM1_CH2/CN10-21** nach **PA15/TIM2_CH1/CN10-11** |
+| `inputs` | Eingangs-Pins einzeln auf GND und 3V3 legen oder Taster betaetigen. PC0-PC3 bekommen im Test Pull-downs; PA4/PA6/PA7/PB12 bekommen Pull-ups. Die User-Taste PC13 ist aktiv LOW. |
 
-- UART-TX wird gesendet, UART-RX bleibt normalerweise leer.
-- I2C meldet NACK/keinen Slave. Das ist ohne Module kein Fehler.
-- Der Flowmeter-Zaehler bleibt normalerweise bei 0. PA5 kann wegen der eingebauten Board-LED LD2 Pegel/Flanken zeigen.
-- Fault-Eingaenge PC0-PC3 koennen ohne angeschlossene Treiberausgaenge undefinierte Pegel zeigen.
-- PWM- und DIR-Pegel werden erzeugt, sind ohne Messgeraet aber nicht sichtbar. Das Programm bestaetigt hier nur, dass Mbed die Objekte und Timer initialisiert und der Task weiterlaeuft.
+Bei `i2c1`/`i2c3` werden die beiden I2C-Controller des STM32 miteinander verbunden. Ein Controller sendet, der andere antwortet als Slave; anschliessend werden die Antwortdaten byteweise verglichen. Das Programm setzt fuer diesen Test interne Pull-ups und 10 kHz. Externe Module waehrenddessen abziehen.
 
-Die I2C-Leitungen haben auf einem nackten Board keine externen Pull-ups. Der Test setzt interne Pull-ups und verwendet 10 kHz, damit die unbelasteten Leitungen fuer diesen Initialisierungstest einen Ruhepegel bekommen. Diese Einstellung ersetzt keine korrekt dimensionierten externen Pull-ups fuer spaetere Hardware.
+USART2 ist die serielle Kommandozeile selbst: deren RX/TX-Pfad ueber PA2/PA3 und ST-LINK VCP wird durch die Bedienung laufend benutzt. Ein zusaetzlicher TX-RX-Jumper wuerde die Kommandos stoeren. Beim SPI-Test erzeugt der Controller SCK; fuer einen elektrischen SCK-Pin-Nachweis den genannten Pin mit dem Oszilloskop pruefen.
 
-## Vor spaeterem Anschluss von Motoren
+## Wichtige Hinweise
 
-`MOTOR_ENABLE_ACTIVE_LEVEL` ist standardmaessig `1` (active-high), PB9 startet daher LOW. Falls dein Treiber active-low ist, ergaenze in `platformio.ini`:
-
-```ini
-    -DMOTOR_ENABLE_ACTIVE_LEVEL=0
-```
-
-Vor dem Anschluss der Motorversorgung die Polaritaet mit dem Datenblatt des Treibers abgleichen. PB13/TIM1_CH1N und PB15/TIM1_CH3N sind komplementaere PWM-Ausgaenge; die effektive Signalpolaritaet sollte spaeter am realen Aufbau geprueft werden.
-
-## Korrekturen zum Pinout
-
-- PA5 liegt auf **CN10-11**, nicht CN7-28. CN7-28 ist PA0. PA5 ist zudem mit der gruenen Board-LED LD2 verbunden.
-- PA13 = **SWDIO**, PA14 = **SWCLK**. Der Test konfiguriert diese Pins nicht.
-- Fuer UART4 auf PC10/PC11 muss Mbed die alternativen Pinnamen `PC_10_ALT0` und `PC_11_ALT0` verwenden. Ohne `ALT0` wird USART3 gewaehlt.
-- Die VCP-Richtung aus Sicht des STM32: PA2 = TX zum ST-Link, PA3 = RX vom ST-Link.
+- Vor dem Test externe Motor-Treiber, Motoren, Display, Raspberry Pi und sonstige Module abziehen. Besonders der Motoren-Enable-Pin PB9 wird beim GPIO-Test geschaltet.
+- Jumper nur zwischen den genannten MCU-Pins setzen. Keine Ausgaenge mit einer externen Versorgung verbinden; fuer Eingangstests nur GND oder **3V3**, niemals 5 V, verwenden.
+- Das PWM-Testsignal ist 1 kHz mit ungefaehr 50 % Tastgrad. Der Test auf PC8 prueft TIM3_CH3 als Pin-/Timer-Ausgang, sendet aber kein WS2811-Protokoll.
+- PA2/PA3 bleiben waehrend des Tests die serielle Kommandozeile. PA13/PA14 bleiben fuer SWD reserviert.
+- In der Tabelle ist kein MCU-GPIO doppelt vergeben. PA4 wird waehrend GPIO-/PWM-Tests temporaer als Rueckmelde-Eingang verwendet. USART2 auf PA2/PA3 ist absichtlich gleichzeitig die serielle Konsole. Die vier Motor-PWM-Pins liegen auf TIM1; sie koennen unterschiedliche Tastgrade, aber nur dieselbe Timerfrequenz verwenden. PC8/TIM3 ist davon unabhaengig.

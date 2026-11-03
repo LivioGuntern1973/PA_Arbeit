@@ -1,14 +1,15 @@
 # Nucleo-F446RE Pinmapping-Test
 
-Ein PlatformIO-Projekt fuer den STM32Cube/HAL-Framework. Die serielle Kommandozeile laeuft ueber USART2 und den ST-LINK-Virtual-COM-Port.
+Ein PlatformIO-Testprogramm fuer STM32Cube/HAL. In PlatformIO die Umgebung **`nucleo_f446re_pin_test`** verwenden; sie ist als Standardumgebung gesetzt. Die bestehende Mbed-Umgebung bleibt fuer das Hauptprojekt erhalten, ist fuer dieses HAL-Testprogramm aber nicht geeignet, da Mbed eigene HAL-I2C-Callbacks bereitstellt. Die serielle Kommandozeile laeuft ueber USART2 und den ST-LINK-Virtual-COM-Port.
 
 ## Start in VS Code / PlatformIO
 
-1. In VS Code den Ordner `nucleo_f446re_pin_test` als PlatformIO-Projekt oeffnen.
-2. Nucleo-F446RE per USB am ST-LINK anschliessen.
-3. In PlatformIO **Build** und danach **Upload** ausfuehren.
-4. Den PlatformIO Serial Monitor mit **115200 Baud, 8N1** oeffnen.
-5. `help` eingeben. Ein Test startet mit seinem Befehl; vor jedem Verdrahtungsschritt fordert das Programm `go` an.
+1. Das Projekt `Milchdosierung` in VS Code oeffnen.
+2. In PlatformIO die Umgebung **`nucleo_f446re_pin_test`** waehlen (sie ist als Standard gesetzt).
+3. Nucleo-F446RE per USB am ST-LINK anschliessen.
+4. **Build** und danach **Upload** ausfuehren.
+5. Den PlatformIO Serial Monitor mit **115200 Baud, 8N1** oeffnen.
+6. `help` eingeben. Vor jedem Verdrahtungsschritt fordert das Programm `go` an.
 
 Die Zeilenendung im Monitor sollte LF sein. Der Monitor benutzt PA2/PA3 (USART2), die bei diesem Nucleo fuer den ST-LINK VCP vorgesehen sind.
 

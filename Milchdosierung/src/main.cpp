@@ -475,7 +475,6 @@ void I2C3_ER_IRQHandler(void) { HAL_I2C_ER_IRQHandler(&hi2c3); }
 
 static uint8_t tim1_pwm_init(void)
 {
-    GPIO_InitTypeDef gpio = {0};
     TIM_OC_InitTypeDef oc = {0};
     gpio_config_af(GPIOB, GPIO_PIN_13 | GPIO_PIN_15, GPIO_AF1_TIM1);
     gpio_config_af(GPIOA, GPIO_PIN_9 | GPIO_PIN_11, GPIO_AF1_TIM1);
@@ -588,7 +587,6 @@ static uint8_t wait_tim2_capture(uint32_t *capture, uint32_t timeout_ms)
 
 static void test_flow_input(void)
 {
-    GPIO_InitTypeDef gpio = {0};
     TIM_IC_InitTypeDef capture = {0};
     uint32_t first = 0U, second = 0U;
     console_write("\r\nFlowmeter-Eingang: Test-PWM von PA9 CN10-21 nach PA15 CN10-11.\r\n");

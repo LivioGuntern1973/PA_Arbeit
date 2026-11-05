@@ -28,7 +28,7 @@
  * motor.getRotation(); // read current rotation
  * ```
  *
- * @author M. Peter / pmic / pichim
+ * @author M. Peter / pmic / pichim / S. Geering
  */
 
 #ifndef DC_MOTOR_OPEN_LOOP_H_
@@ -325,6 +325,7 @@ private:
     float m_voltage;
     float m_pwm;
     float m_pwm_min;
+    
 
     void threadTask();
     void sendThreadFlag();

@@ -14,7 +14,7 @@ DCMotorOpenLoop::DCMotorOpenLoop(PinName pwm_pin,
 #endif
                                                        m_Thread(osPriorityHigh1)
 #if PERFORM_CHIRP_MEAS
-                                                       , m_BufferedSerial(USBTX, USBRX)
+                                                     , m_BufferedSerial(USBTX, USBRX)
 #endif
 {
     // motor parameters
@@ -164,7 +164,7 @@ void DCMotorOpenLoop::setVelocityCntrl(float kp, float ki, float kd)
     // avoid students melting their motors
     setVelocityCntrlIntegratorLimitsPercent();
     // // print for debugging
-    // printf("DCMotorOpenLoop: velocity controller parameters: kp = %.4f, ki = %.4f, kd = %.4f\n", kp, ki, kd);
+    // printf("DCMotorOpenLoop: velocity controller parameters: kp = %.4f, ki = %.4f, kd = %.4f", kp, ki, kd);
 }
 
 void DCMotorOpenLoop::setVelocityCntrlIntegratorLimitsPercent(float percent_of_max)
@@ -286,6 +286,15 @@ void DCMotorOpenLoop::threadTask()
                             (velocity_setpoint < -m_velocity_max) ? -m_velocity_max :
                              velocity_setpoint;
 
+        // Bei Sollgeschwindigkeit null den kleinen Rest der Planner-Rampe abschneiden,
+        // damit pwm_min am Ende der Bremsrampe nicht weiter anliegt. Einheit: U/s.
+        constexpr float STOP_EPSILON_RPS = 0.01f;
+        if (m_cntrlMode == CntrlMode::Velocity &&
+            m_velocity_target == 0.0f &&
+            fabs(velocity_setpoint) < STOP_EPSILON_RPS) {
+            velocity_setpoint = 0.0f;
+        }
+
         // Schaetzung aus dem Sollwert; die echte Motordrehung wird nicht gemessen.
         m_velocity = velocity_setpoint;
         m_velocity_setpoint = velocity_setpoint;
@@ -327,7 +336,4 @@ void DCMotorOpenLoop::sendThreadFlag()
     // set the thread flag to trigger the thread task
     m_Thread.flags_set(m_ThreadFlag);
 }
-
-
-
 

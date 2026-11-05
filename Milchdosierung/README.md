@@ -94,9 +94,6 @@
 
 # PES Board - Hardware and Driver Documentation
 
-MilkMate: [Pinmapping-Test mit CN7/CN10-Verdrahtung](src/pinmap_test.md)
-fuer die PlatformIO-Umgebung `pinmap_test`.
-
 | Michael Peter | Michael Wüthrich | Camille Huber |
 | ------------- | ---------------- | ------------- |
 | pmic@zhaw.ch  | wuem@zhaw.ch     | hurc@zhaw.ch  |

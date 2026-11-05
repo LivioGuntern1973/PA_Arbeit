@@ -39,6 +39,9 @@ Die folgenden Verbindungen bleiben für alle automatischen Tests gleichzeitig ge
 | PA11 **CN10-14** | PC3 **CN7-37** | Motor 4 PWM → Fehler-Eingang 4 |
 | PC8 **CN10-2** | PA15 **CN7-17** **und** PA10 **CN10-33** | PWM → TIM2-Pulszähler und separater PWM-Messeingang; eine Quelle auf zwei Eingänge |
 
+**PA15 liegt auf CN7-17. CN7-23 ist PC13 (User-Taster)** und gehört nicht an
+das PC8-Signal. PC8, PA10 und PA15 müssen einen gemeinsamen elektrischen Knoten bilden.
+
 An die zusammengeschaltete **SDA-Leitung einen 4,7-kΩ-Pull-up** nach **3V3
 CN7-16**, ebenso an die **SCL-Leitung einen zweiten 4,7-kΩ-Pull-up** nach CN7-16.
 Insgesamt zwei Widerstände; die internen Pull-ups werden für I²C nicht verwendet.
@@ -93,8 +96,29 @@ pio device monitor -e pinmap_test
 ```
 
 Bei mehreren COM-Ports beim Monitor `--port COMx` ergänzen.
+Falls PowerShell `pio` nicht findet, den vollständigen Programmpfad verwenden:
+
+```powershell
+& "C:\Users\simon\.platformio\penv\Scripts\platformio.exe" run -e pinmap_test -t upload
+& "C:\Users\simon\.platformio\penv\Scripts\platformio.exe" device monitor -e pinmap_test --port COM19
+```
+
+Den Monitor vor einem erneuten Upload oder einer anderen COM-Port-Prüfung mit
+Ctrl+C schliessen. Die COM-Nummer gegebenenfalls an die Geräteanzeige anpassen.
+
 Zum Zurückwechseln zur Anwendung ausdrücklich **nucleo_f446re** auswählen bzw.
 `pio run -e nucleo_f446re -t upload` ausführen. Vor deren Start die Testbrücken entfernen.
+
+### Upload erfolgreich, aber serieller Monitor leer
+
+Der Test gibt in jeder Runde neue Meldungen aus. Die Startmeldung allein zu
+verpassen erklärt deshalb keinen dauerhaft leeren Monitor. Zuerst die richtige
+Umgebung, den ST-Link-COM-Port und 115200 Baud prüfen. Bleibt der Monitor trotz
+erfolgreichem Upload und B2-Reset leer, den Monitor mit Ctrl+C schliessen, das
+ST-Link-USB-Kabel für etwa fünf Sekunden abziehen und wieder einstecken. Danach
+den COM-Port erneut prüfen und den Monitor öffnen. Dieser Schritt hat die
+Ausgabe beim Hardwaretest dieses Projekts wiederhergestellt. B2 setzt den
+Zielcontroller zurück; das USB-Neuverbinden initialisiert auch die ST-Link-Verbindung neu.
 
 ## 3. Erwartete Ergebnisse
 

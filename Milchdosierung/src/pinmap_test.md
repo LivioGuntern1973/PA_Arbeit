@@ -133,10 +133,12 @@ wegen des Hardware-Teilers vom angeforderten Wert abweichen.
   und Periodenregister. Unterschiedliche Tastgrade sind möglich; unterschiedliche
   Frequenzen auf diesen vier Pins gleichzeitig nicht. `period_us()` später an
   einem Kanal zu ändern beeinflusst die anderen Kanäle.
-- **PB15 und PB13:** TIM1_CH3N und TIM1_CH1N sind komplementäre Ausgänge. Der hier
-  installierte Mbed-STM32-Treiber gibt bei `PwmOut::write(x)` dort den HIGH-Anteil
-  `1-x` aus. Der Test kompensiert das absichtlich. Das muss auch der spätere
-  Motortreiber berücksichtigen; `write(0)` bedeutet dort nicht LOW.
+- **PB15 und PB13:** Hier wird jeweils nur der N-Ausgang des Timerkanals aktiviert
+  (CCxE=0, CCxNE=1, CCxNP=0). In diesem Modus folgt er laut RM0390 dem
+  Vergleichssignal ohne Invertierung. `PwmOut::write(x)` ergibt hier den HIGH-Anteil
+  `x`. Die zusätzliche Software-Invertierung aus der ersten Testversion war falsch
+  und ist in Version 2 entfernt. Werden später beide Ausgänge desselben Kanals
+  aktiviert, ändert sich dieses Verhalten. Version 2 prüft die Enable-/Polaritätsbits.
 - **I²C:** Zwei Master, die nur Daten senden, ergeben keinen Loopback. Deshalb
   läuft I²C3 in einem separaten Mbed-Thread als Slave und liefert eine echte Antwort.
   Beide Datenrichtungen werden geprüft; der Rollenwechsel zu I²C3 als Master
@@ -145,9 +147,29 @@ wegen des Hardware-Teilers vom angeforderten Wert abweichen.
   Beispielsweise bezeichnet Bit 2 die Schleife PC4 → PA7.
 - **PIN FAIL:** Die Ausgabe enthält Ist/Soll für Modus, AF, Pull und Open-drain.
   Das deutet auf eine abweichende Initialisierung oder einen überschriebenen Pin hin.
+  SPI-SCK hat bei Mode 0 absichtlich einen internen Pull-down (`pull=2`); der
+  falsche Sollwert `0` aus der ersten Testversion wurde in Version 2 korrigiert.
 - **PC8 / WS2811:** Hier wird die Timer-/Pin-Funktion mit normaler PWM geprüft.
   Ein WS2811-Datentelegramm mit passenden Bitzeiten, Resetpause und ggf. Pegelwandler
   ist eine spätere separate Treiberprüfung. Der Test weist keine LED-Protokollfunktion nach.
+
+### Zusätzliche Diagnose in Version 2
+
+- **I²C:** Vor der Übertragung sollen SDA PB7/PC9 und SCL PB6/PA8 alle `1` melden.
+  Bei `0` zuerst Pull-ups nach 3,3 V, Kurzschlüsse und Verdrahtung kontrollieren.
+  Vier HIGH-Pegel allein beweisen noch keine Verbindung. `slave polls` zeigt, ob
+  der Slave-Thread läuft, `addressed RX/TX` zählt erkannte Adressierungen und
+  `errors` die fehlgeschlagenen Slave-Transfers. `PE`, `ACK` und `eventIRQ` sollen
+  vor dem Transfer jeweils `1` sein. `OAR1` enthält die konfigurierte Slave-Adresse.
+  Die bisherigen `tx=1 rx=1` sind allgemeine Transferfehler, keine genaue Ursache.
+- **PA15:** Zusätzlich wird der elektrische Pegel aus GPIOA_IDR gelesen, ohne die
+  AF1-Konfiguration zu verändern. Erwartet werden ca. 20 steigende Flanken in
+  10 ms. Bleibt das bei `0`, während PC8 → PA10 besteht, die zweite Brücke
+  **PC8 CN10-2 → PA15 CN7-17** und das Signal direkt an PA15 prüfen.
+  Kommen ca. 20 Flanken an, TIM2 zählt aber weiterhin `0`, liegt der Verdacht bei
+  der Timerkonfiguration oder deren Überschreiben. Bei Zählerstand `0` werden die
+  Timerregister mit ausgegeben: CR1=0x1, SMCR=0x57, CCMR1=0x1, CCER=0x1,
+  clock=1 sind die erwartete Initialisierung.
 
 Ein bestandener Durchlauf bestätigt die geprüfte Konfiguration und Verdrahtung
 bei diesen Testraten. Er ersetzt nicht den Integrationstest mit den späteren
@@ -159,6 +181,8 @@ Treibern, realen Geräten, deren Zielraten und Interrupt-/DMA-Last.
   Tabelle 29 (CN7/CN10), Abschnitte 7.6/7.7 (LED/Taster), 7.10/7.11 (UART/Lötbrücken).
 - [STM32F446xC/E Datenblatt](https://www.st.com/resource/en/datasheet/stm32f446re.pdf):
   Alternate-Function-Belegung.
+- [ST RM0390](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf):
+  Abschnitt 16.3.11, N-Ausgang ohne Invertierung bei alleiniger Aktivierung.
 - Installiertes Mbed OS 6.17: `targets/TARGET_STM/pwmout_api.c`,
   `targets/TARGET_STM/i2c_api.c`, `targets/TARGET_STM/TARGET_STM32F4/us_ticker_data.h`
   (Mbed-Mikrosekundenticker verwendet TIM5) und

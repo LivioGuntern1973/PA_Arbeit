@@ -23,7 +23,7 @@ constexpr int I2C_ADDRESS = 0x32 << 1; // Mbed takes the shifted 8-bit address.
 constexpr int FRAME_SIZE = 16;
 constexpr unsigned SPI_BYTES = 64;
 
-// Additional pins used only as test receivers. See docs/pinmap_test.md.
+// Additional pins used only as test receivers. See src/pinmap_test.md.
 constexpr PinName GPIO_FEEDBACK[] = {PB_0, PB_1, PB_4, PB_5};
 constexpr PinName SCK_FEEDBACK = PB_8;
 constexpr PinName LED_FEEDBACK = PA_10;
@@ -57,7 +57,7 @@ constexpr PinConfig PIN_CONFIG[] = {
     {DISPLAY_SCL, "I2C3 SCL PA8", 2, 4, 0, true},
     {DISPLAY_MOSI, "SPI3 MOSI PC12", 2, 6, 2, false},
     {DISPLAY_MISO, "SPI3 MISO PC11", 2, 6, 0, false},
-    {DISPLAY_SCK, "SPI3 SCK PC10", 2, 6, 0, false},
+    {DISPLAY_SCK, "SPI3 SCK PC10", 2, 6, 2, false}, // Mode 0: Mbed selects PullDown.
     {DISPLAY_CS, "CS PC7", 1, 0, 0, false},
     {DISPLAY_DC, "DC PC6", 1, 0, 0, false},
     {DISPLAY_RESET, "RESET PB2", 1, 0, 0, false},
@@ -260,6 +260,21 @@ bool checkPinConfiguration()
 }
 
 std::atomic<uint32_t> slaveWrites{0}, slaveReads{0}, slaveErrors{0};
+std::atomic<uint32_t> slavePolls{0}, slaveWriteRequests{0}, slaveReadRequests{0};
+
+void printI2cDiagnostics()
+{
+    // Read GPIO input data without creating DigitalIn objects: those would
+    // replace the I2C alternate functions. CR1/CR2/OAR1 have no read-to-clear
+    // flags; deliberately do not read the SR1/SR2 sequence during slave IRQs.
+    printf("  I2C idle SDA PB7/PC9=%u/%u SCL PB6/PA8=%u/%u (expected all 1)\r\n",
+           unsigned((GPIOB->IDR >> 7) & 1), unsigned((GPIOC->IDR >> 9) & 1),
+           unsigned((GPIOB->IDR >> 6) & 1), unsigned((GPIOA->IDR >> 8) & 1));
+    printf("  I2C3 listen PE=%u ACK=%u eventIRQ=%u OAR1=0x%04lX\r\n",
+           unsigned(bool(I2C3->CR1 & I2C_CR1_PE)),
+           unsigned(bool(I2C3->CR1 & I2C_CR1_ACK)),
+           unsigned(bool(I2C3->CR2 & I2C_CR2_ITEVTEN)), (unsigned long)I2C3->OAR1);
+}
 
 void serveI2c(TestHardware *hw)
 {
@@ -268,8 +283,10 @@ void serveI2c(TestHardware *hw)
     char received[FRAME_SIZE] = {};
     char response[FRAME_SIZE] = {};
     while (true) {
+        ++slavePolls;
         switch (hw->displayI2c.receive()) {
             case I2CSlave::WriteAddressed:
+                ++slaveWriteRequests;
                 if (hw->displayI2c.read(received, FRAME_SIZE) == 0) {
                     for (int i = 0; i < FRAME_SIZE; ++i) {
                         response[i] = static_cast<char>(received[i] ^ 0xA5);
@@ -280,6 +297,7 @@ void serveI2c(TestHardware *hw)
                 }
                 break;
             case I2CSlave::ReadAddressed:
+                ++slaveReadRequests;
                 if (hw->displayI2c.write(response, FRAME_SIZE) == 0) {
                     ++slaveReads;
                 } else {
@@ -298,6 +316,10 @@ bool testI2c(TestHardware &hw, unsigned round)
     const auto errorsBefore = slaveErrors.load();
     const auto writesBefore = slaveWrites.load();
     const auto readsBefore = slaveReads.load();
+    const auto pollsBefore = slavePolls.load();
+    const auto writeRequestsBefore = slaveWriteRequests.load();
+    const auto readRequestsBefore = slaveReadRequests.load();
+    printI2cDiagnostics();
     unsigned good = 0;
     for (unsigned frame = 0; frame < 4; ++frame) {
         char sent[FRAME_SIZE], expected[FRAME_SIZE], received[FRAME_SIZE] = {};
@@ -319,6 +341,11 @@ bool testI2c(TestHardware &hw, unsigned round)
     const auto reads = slaveReads.load() - readsBefore;
     printf("  I2C1 <-> I2C3: %u/4 frames, slave RX/TX=%lu/%lu\r\n",
            good, (unsigned long)writes, (unsigned long)reads);
+    printf("  I2C slave polls=%lu addressed RX/TX=%lu/%lu errors=%lu\r\n",
+           (unsigned long)(slavePolls.load() - pollsBefore),
+           (unsigned long)(slaveWriteRequests.load() - writeRequestsBefore),
+           (unsigned long)(slaveReadRequests.load() - readRequestsBefore),
+           (unsigned long)(slaveErrors.load() - errorsBefore));
     return good == 4 && writes == 4 && reads == 4 && slaveErrors.load() == errorsBefore;
 }
 
@@ -405,11 +432,42 @@ bool testGpio(TestHardware &hw)
 void setMotorDuties(TestHardware &hw, const unsigned duty[4])
 {
     for (unsigned i = 0; i < 4; ++i) {
-        // TIM1 CH3N / CH1N are complementary outputs. In this Mbed STM32
-        // driver their physical HIGH time is 1 - PwmOut::write(value).
-        const float value = duty[i] / 100.0f;
-        hw.motorPwm[i]->write((i == 0 || i == 2) ? 1.0f - value : value);
+        // RM0390 16.3.11: when only OCxN is enabled (CCxE=0, CCxNE=1),
+        // it follows OCxREF without complementation. Mbed uses that mode on
+        // PB13/PB15 here, with CCxNP=0. No extra software inversion is needed.
+        hw.motorPwm[i]->write(duty[i] / 100.0f);
     }
+}
+
+bool checkTim1Outputs()
+{
+    const uint32_t mask = TIM_CCER_CC1E | TIM_CCER_CC1NE | TIM_CCER_CC1P | TIM_CCER_CC1NP |
+                          TIM_CCER_CC2E | TIM_CCER_CC2NE | TIM_CCER_CC2P | TIM_CCER_CC2NP |
+                          TIM_CCER_CC3E | TIM_CCER_CC3NE | TIM_CCER_CC3P | TIM_CCER_CC3NP |
+                          TIM_CCER_CC4E | TIM_CCER_CC4P;
+    const uint32_t expected = TIM_CCER_CC1NE | TIM_CCER_CC2E |
+                              TIM_CCER_CC3NE | TIM_CCER_CC4E;
+    const bool ok = (TIM1->CCER & mask) == expected;
+    if (!ok) {
+        printf("  TIM1 CCER=0x%04lX, expected enables/polarities=0x%04lX\r\n",
+               (unsigned long)TIM1->CCER, (unsigned long)expected);
+    }
+    return ok;
+}
+
+unsigned samplePa15Edges()
+{
+    // Keep PA15 in AF1. IDR also exposes its electrical input in AF mode.
+    unsigned rises = 0;
+    bool previous = (GPIOA->IDR & GPIO_PIN_15) != 0;
+    const uint32_t start = us_ticker_read();
+    while (us_ticker_read() - start < 10000) {
+        const bool level = (GPIOA->IDR & GPIO_PIN_15) != 0;
+        if (level && !previous) { ++rises; }
+        previous = level;
+        wait_us(5);
+    }
+    return rises;
 }
 
 bool checkPwm(PwmCapture &capture, const char *name, unsigned period, unsigned duty)
@@ -440,13 +498,14 @@ void printResult(const char *name, bool ok, unsigned &failures)
 int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
-    printf("\r\nMilkMate NUCLEO-F446RE pin test\r\n");
-    printf("Only a bare Nucleo with test jumpers! Wiring: docs/pinmap_test.md\r\n");
+    printf("\r\nMilkMate NUCLEO-F446RE pin test v2\r\n");
+    printf("Only a bare Nucleo with test jumpers! Wiring: src/pinmap_test.md\r\n");
     printf("Initializing ALL mapped peripherals simultaneously...\r\n");
     static TestHardware hw;
     initFlowCounter();
     static Thread slaveThread(osPriorityAboveNormal, 4096, nullptr, "i2c3-slave");
-    slaveThread.start(callback(serveI2c, &hw));
+    const osStatus slaveStart = slaveThread.start(callback(serveI2c, &hw));
+    printf("I2C slave thread start=%d (expected 0)\r\n", int(slaveStart));
     FileHandle *console = mbed_file_handle(STDIN_FILENO);
     // Mbed's default DirectSerial does not implement nonblocking read().
     // Poll first and read exactly one byte so the automatic test never waits
@@ -471,6 +530,7 @@ int main()
         Timer window;
         window.start();
         const uint32_t countBefore = TIM2->CNT;
+        const unsigned pa15Edges = samplePa15Edges();
         printResult("Pin modes / AF / pull resistors", checkPinConfiguration(), failures);
         printResult("GPIO enables, DIR, display controls, button inputs", testGpio(hw), failures);
         printResult("UART4 loop", testUart(hw, round), failures);
@@ -485,10 +545,18 @@ int main()
         const uint32_t tolerance = expectedCounts / 50 + 3;
         printf("  TIM2 PA15: %lu external pulses, expected about %lu\r\n",
                (unsigned long)counts, (unsigned long)expectedCounts);
+        printf("  PA15 electrical input: %u rising edges / 10 ms (expected about 20)\r\n",
+               pa15Edges);
+        if (counts == 0) {
+            printf("  TIM2 CR1=0x%lX SMCR=0x%lX CCMR1=0x%lX CCER=0x%lX clock=%u\r\n",
+                   (unsigned long)TIM2->CR1, (unsigned long)TIM2->SMCR,
+                   (unsigned long)TIM2->CCMR1, (unsigned long)TIM2->CCER,
+                   unsigned(bool(RCC->APB1ENR & RCC_APB1ENR_TIM2EN)));
+        }
         printResult("PC8 -> PA15 hardware pulse counter",
                     counts + tolerance >= expectedCounts && counts <= expectedCounts + tolerance,
                     failures);
-        bool pwmOk = true;
+        bool pwmOk = checkTim1Outputs();
         const char *pwmNames[] = {"M1 PB15", "M2 PA9", "M3 PB13", "M4 PA11"};
         for (unsigned i = 0; i < 4; ++i) {
             pwmOk = checkPwm(*hw.capture[i], pwmNames[i], MOTOR_PERIOD_US, duties[i]) && pwmOk;

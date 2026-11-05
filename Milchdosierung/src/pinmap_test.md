@@ -171,6 +171,28 @@ wegen des Hardware-Teilers vom angeforderten Wert abweichen.
   Timerregister mit ausgegeben: CR1=0x1, SMCR=0x57, CCMR1=0x1, CCER=0x1,
   clock=1 sind die erwartete Initialisierung.
 
+### I²C-Stillstand nach der Adressierung: Version 3
+
+Wenn Version 2 nach `I2C3 listen ... OAR1=0x4065` stehenbleibt, passt das zu einem
+Problem im Zusammenspiel des installierten STM32F4-HAL- und Mbed-Slave-Treibers:
+Der Adress-Interrupt kann sich wiederholen, während der Slave-Thread noch keinen
+Empfangs-/Sendepuffer bereitgestellt hat. Der Thread kommt dann nicht zum Zug.
+HIGH-Pegel an allen vier I²C-Pins allein beweisen weder eine vollständige
+Verbindung noch die erfolgreiche Datenübertragung.
+
+Version 3 ergänzt im Testprogramm eine lokale Behandlung des I²C3-Event-Interrupts.
+Nach der Adresserkennung werden Event-/Puffer-Interrupts kurz pausiert, solange
+der HAL-Zustand noch LISTEN ist. Das ADDR-Flag und Clock-Stretching bleiben dabei
+erhalten. Sobald der Thread den Puffer mit `I2CSlave::read()` bzw. `write()`
+bereitstellt, löscht HAL das ADDR-Flag und schaltet die Interrupts wieder ein.
+Während des eigentlichen Datentransfers werden sie nicht pausiert.
+
+Die Startmeldung lautet `pin test v3`. `address-to-thread deferrals` zählt diese
+Übergaben; im fehlerfreien Ablauf werden bei vier Schreib-/Lese-Paaren acht
+erwartet. Zusätzlich wird vor jedem Schreib- und Lesevorgang der Fortschritt
+ausgegeben. Diese STM32F446/Mbed-spezifische Korrektur verändert weder Pinmapping
+noch Verdrahtung. Ihre Funktion muss mit einem erneuten Board-Durchlauf bestätigt werden.
+
 Ein bestandener Durchlauf bestätigt die geprüfte Konfiguration und Verdrahtung
 bei diesen Testraten. Er ersetzt nicht den Integrationstest mit den späteren
 Treibern, realen Geräten, deren Zielraten und Interrupt-/DMA-Last.

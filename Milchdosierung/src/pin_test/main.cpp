@@ -158,6 +158,24 @@ private:
     volatile bool waitingForFall = false;
 };
 
+class TestI2cSlave : public I2CSlave {
+public:
+    using I2CSlave::I2CSlave;
+
+    bool addressAwaitingBuffer() const
+    {
+#if DEVICE_I2C_ASYNCH
+        const auto &state = _i2c.i2c;
+#else
+        const auto &state = _i2c;
+#endif
+        // A pending address while still LISTEN means the application has not
+        // armed its RX/TX buffer yet. BUSY_*_LISTEN must keep its interrupts.
+        return state.handle.State == HAL_I2C_STATE_LISTEN &&
+               (state.pending_slave_rx_maxter_tx || state.pending_slave_tx_master_rx);
+    }
+};
+
 class TestHardware {
 public:
     PwmOut pwm1{MOTOR_PWM[0]}, pwm2{MOTOR_PWM[1]};
@@ -178,7 +196,7 @@ public:
     BufferedSerial raspi{RASPI_TX, RASPI_RX, 115200};
     SPI display{DISPLAY_MOSI, DISPLAY_MISO, DISPLAY_SCK};
     I2C flow{FLOW_SDA, FLOW_SCL};
-    I2CSlave displayI2c{DISPLAY_SDA, DISPLAY_SCL};
+    TestI2cSlave displayI2c{DISPLAY_SDA, DISPLAY_SCL};
     DigitalIn userButton{USER_BUTTON, PullNone};
     DigitalOut userLed{USER_LED, 0};
 
@@ -261,6 +279,38 @@ bool checkPinConfiguration()
 
 std::atomic<uint32_t> slaveWrites{0}, slaveReads{0}, slaveErrors{0};
 std::atomic<uint32_t> slavePolls{0}, slaveWriteRequests{0}, slaveReadRequests{0};
+std::atomic<uint32_t> slaveAddressDeferrals{0};
+
+using IrqHandler = void (*)();
+IrqHandler originalI2c3EventHandler = nullptr;
+TestI2cSlave *guardedI2cSlave = nullptr;
+
+void guardedI2c3EventHandler()
+{
+    // Let Mbed/HAL identify the address and set its pending-slave flag first.
+    originalI2c3EventHandler();
+    if (guardedI2cSlave->addressAwaitingBuffer()) {
+        // STM32F4 keeps ADDR asserted until a buffer is armed. Without this
+        // deferral, the event IRQ can retrigger continuously and prevent the
+        // application thread from ever reaching I2CSlave::read()/write().
+        // Keep ADDR and clock stretching intact; only pause event/buffer IRQs.
+        // HAL_I2C_Slave_Seq_*_IT() clears ADDR and re-enables these IRQs when
+        // the slave thread arms the buffer. Data-transfer IRQs stay enabled.
+        I2C3->CR2 &= ~(I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN);
+        slaveAddressDeferrals.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+void installI2c3EventGuard(TestI2cSlave &slave)
+{
+    const auto guardedVector = reinterpret_cast<uint32_t>(&guardedI2c3EventHandler);
+    if (NVIC_GetVector(I2C3_EV_IRQn) != guardedVector) {
+        CriticalSectionLock lock;
+        guardedI2cSlave = &slave;
+        originalI2c3EventHandler = reinterpret_cast<IrqHandler>(NVIC_GetVector(I2C3_EV_IRQn));
+        NVIC_SetVector(I2C3_EV_IRQn, guardedVector);
+    }
+}
 
 void printI2cDiagnostics()
 {
@@ -283,6 +333,9 @@ void serveI2c(TestHardware *hw)
     char received[FRAME_SIZE] = {};
     char response[FRAME_SIZE] = {};
     while (true) {
+        // Mbed may restore its vector during recovery; wrap it again before
+        // arming another buffer. No global framework files are modified.
+        installI2c3EventGuard(hw->displayI2c);
         ++slavePolls;
         switch (hw->displayI2c.receive()) {
             case I2CSlave::WriteAddressed:
@@ -305,9 +358,11 @@ void serveI2c(TestHardware *hw)
                 }
                 break;
             default:
-                ThisThread::sleep_for(1ms);
                 break;
         }
+        // Yield after errors as well so a stale pending flag cannot starve
+        // the master thread and its timeout/reporting path.
+        ThisThread::sleep_for(1ms);
     }
 }
 
@@ -319,6 +374,7 @@ bool testI2c(TestHardware &hw, unsigned round)
     const auto pollsBefore = slavePolls.load();
     const auto writeRequestsBefore = slaveWriteRequests.load();
     const auto readRequestsBefore = slaveReadRequests.load();
+    const auto deferralsBefore = slaveAddressDeferrals.load();
     printI2cDiagnostics();
     unsigned good = 0;
     for (unsigned frame = 0; frame < 4; ++frame) {
@@ -327,8 +383,10 @@ bool testI2c(TestHardware &hw, unsigned round)
             sent[i] = static_cast<char>(round * 13 + frame * 47 + i * 17);
             expected[i] = static_cast<char>(sent[i] ^ 0xA5);
         }
+        printf("  I2C frame %u: writing...\r\n", frame);
         const int tx = hw.flow.write(I2C_ADDRESS, sent, FRAME_SIZE);
         ThisThread::sleep_for(2ms); // Let the slave finish preparing its reply.
+        printf("  I2C frame %u: tx=%d, reading...\r\n", frame, tx);
         const int rx = hw.flow.read(I2C_ADDRESS, received, FRAME_SIZE);
         ThisThread::sleep_for(2ms);
         if (tx == 0 && rx == 0 && memcmp(received, expected, FRAME_SIZE) == 0) {
@@ -346,6 +404,8 @@ bool testI2c(TestHardware &hw, unsigned round)
            (unsigned long)(slaveWriteRequests.load() - writeRequestsBefore),
            (unsigned long)(slaveReadRequests.load() - readRequestsBefore),
            (unsigned long)(slaveErrors.load() - errorsBefore));
+    printf("  I2C address-to-thread deferrals=%lu\r\n",
+           (unsigned long)(slaveAddressDeferrals.load() - deferralsBefore));
     return good == 4 && writes == 4 && reads == 4 && slaveErrors.load() == errorsBefore;
 }
 
@@ -498,11 +558,13 @@ void printResult(const char *name, bool ok, unsigned &failures)
 int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
-    printf("\r\nMilkMate NUCLEO-F446RE pin test v2\r\n");
+    printf("\r\nMilkMate NUCLEO-F446RE pin test v3\r\n");
     printf("Only a bare Nucleo with test jumpers! Wiring: src/pinmap_test.md\r\n");
     printf("Initializing ALL mapped peripherals simultaneously...\r\n");
     static TestHardware hw;
     initFlowCounter();
+    installI2c3EventGuard(hw.displayI2c);
+    printf("I2C3 address-to-thread interrupt guard installed.\r\n");
     static Thread slaveThread(osPriorityAboveNormal, 4096, nullptr, "i2c3-slave");
     const osStatus slaveStart = slaveThread.start(callback(serveI2c, &hw));
     printf("I2C slave thread start=%d (expected 0)\r\n", int(slaveStart));

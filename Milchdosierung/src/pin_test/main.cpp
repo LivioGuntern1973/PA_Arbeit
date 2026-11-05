@@ -557,8 +557,12 @@ void printResult(const char *name, bool ok, unsigned &failures)
 
 int main()
 {
+    // Let OpenOCD finish its reset/disconnect sequence before sending UART
+    // bytes to the ST-Link/V2-1 bridge (older probe firmware is sensitive to
+    // UART traffic while its debug USB interface is being reconfigured).
+    ThisThread::sleep_for(3s);
     setvbuf(stdout, nullptr, _IONBF, 0);
-    printf("\r\nMilkMate NUCLEO-F446RE pin test v3\r\n");
+    printf("\r\nMilkMate NUCLEO-F446RE pin test v4\r\n");
     printf("Only a bare Nucleo with test jumpers! Wiring: src/pinmap_test.md\r\n");
     printf("Initializing ALL mapped peripherals simultaneously...\r\n");
     static TestHardware hw;

@@ -87,6 +87,14 @@ für Upload und Debugging reserviert; dort keine Testbrücken anbringen.
 3. **Monitor** für diese Umgebung öffnen: **115200 Baud, 8N1**, ST-Link Virtual COM Port.
 4. Gegebenenfalls den schwarzen RESET-Taster drücken, um die Startmeldung zu sehen.
 
+Version 4 wartet nach Reset zunächst drei Sekunden, bevor UART-Ausgaben beginnen.
+Damit endet die Upload-/Disconnect-Sequenz des Debuggers vor dem ersten Text.
+Die Testumgebung stellt den Monitor ausdrücklich auf COM19, 115200 Baud und
+aktive DTR/RTS-Leitungen ein. Bei einer anderen COM-Nummer `monitor_port` anpassen.
+Mit V4 wurde die Ausgabe im echten PlatformIO-Monitor auch nach einem erneuten
+PlatformIO-Upload und mehrfachem Schliessen/Öffnen ohne USB-Neuverbinden geprüft.
+Die dabei empfangenen vollständigen Runden meldeten `AUTO PASS` mit insgesamt null Fehlern.
+
 Alternativ im PlatformIO-Terminal:
 
 ```text

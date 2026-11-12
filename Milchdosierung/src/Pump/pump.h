@@ -136,7 +136,7 @@ public:
     uint16_t getError(void);
 
     /**
-     * @brief DCMotorOpenLoop-Objekt
+     * @brief Motor zur Ansteuerung der Pumpe.
      */
     DCMotorOpenLoop m_motor;
 

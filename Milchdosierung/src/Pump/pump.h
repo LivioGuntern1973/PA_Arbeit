@@ -135,13 +135,17 @@ public:
      */
     uint16_t getError(void);
 
+    /**
+     * @brief DCMotorOpenLoop-Objekt
+     */
+    DCMotorOpenLoop m_motor;
+
 private:
     static constexpr int64_t PERIOD_MUS = 50000;
 
     Thread m_Thread;
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
-    DCMotorOpenLoop m_motor;
     DigitalIn m_ErrorPin;
 
 

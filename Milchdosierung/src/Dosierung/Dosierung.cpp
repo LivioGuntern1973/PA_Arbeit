@@ -8,16 +8,31 @@ constexpr float Dosierung::PERIOD_SECONDS;
 
 Dosierung::Dosierung(const PumpParameters& pump_parameters,
                      const FlowMeterParameters& flowmeter_parameters)
+    : Dosierung(pump_parameters, &flowmeter_parameters)
+{
+}
+
+Dosierung::Dosierung(const PumpParameters& pump_parameters)
+    : Dosierung(pump_parameters, nullptr)
+{
+}
+
+Dosierung::Dosierung(const PumpParameters& pump_parameters,
+                     const FlowMeterParameters* flowmeter_parameters)
     : pump(pump_parameters.pwm_pin,
            pump_parameters.direction_pin,
            pump_parameters.error_pin,
            pump_parameters.voltage_min,
            pump_parameters.voltage_max),
-      flowmeter(flowmeter_parameters.i2c_sda_pin,
-                flowmeter_parameters.i2c_scl_pin,
-                flowmeter_parameters.i2c_address,
-                flowmeter_parameters.i2c_baudrate),
-      m_Thread(osPriorityNormal)
+      flowmeter(flowmeter_parameters
+          ? new FlowMeter(flowmeter_parameters->i2c_sda_pin,
+                          flowmeter_parameters->i2c_scl_pin,
+                          flowmeter_parameters->i2c_address,
+                          flowmeter_parameters->i2c_baudrate)
+          : nullptr),
+      m_Thread(osPriorityNormal),
+      m_maxPumpFlowRate(std::isfinite(pump_parameters.max_flow_rate)
+          ? std::max(0.0f, pump_parameters.max_flow_rate) : 0.0f)
 {
     m_VolumeTimer.start();
     m_Thread.start(callback(this, &Dosierung::threadTask));
@@ -82,13 +97,14 @@ float Dosierung::getVolumeCorrection() const
 
 uint16_t Dosierung::getState()
 {
+    const uint16_t flowmeterError = flowmeter ? flowmeter->getError() : 0;
     return static_cast<uint16_t>((pump.getError() & 0x00ffU)
-                                | ((flowmeter.getError() & 0x00ffU) << 8));
+                                | ((flowmeterError & 0x00ffU) << 8));
 }
 
 uint16_t Dosierung::getBubbleState() const
 {
-    return flowmeter.getBubbleDetectionLevel();
+    return flowmeter ? flowmeter->getBubbleDetectionLevel() : 0;
 }
 
 void Dosierung::beginDispensing(float volume, bool automatic)
@@ -96,10 +112,11 @@ void Dosierung::beginDispensing(float volume, bool automatic)
     m_actVolume = 0.0f;
     m_targetVolume = volume;
     m_automatic = automatic;
-    m_previousFlowRate = std::max(0.0f, flowmeter.getFlowRate()) * (1000.0f / 60.0f);
+    m_previousFlowRate = getFlowRateMlPerSecond();
     m_VolumeTimer.reset();
 
-    if (getState() != 0 || (automatic && volume + m_volumeCorrection <= 0.0f)) {
+    if (getState() != 0 || (automatic && (volume + m_volumeCorrection <= 0.0f
+                                        || (!flowmeter && m_maxPumpFlowRate <= 0.0f)))) {
         stopPumpWithMinimumRamp();
         m_step = Step::RampDown;
         m_automatic = false;
@@ -118,12 +135,24 @@ void Dosierung::stopPumpWithMinimumRamp()
     pump.setRampTimeStop(previousRampTime);
 }
 
+float Dosierung::getFlowRateMlPerSecond() const
+{
+    if (flowmeter) {
+        return std::max(0.0f, flowmeter->getFlowRate()) * (1000.0f / 60.0f);
+    }
+
+    const float maxVelocity = pump.m_motor.getMaxVelocity();
+    const float velocityRatio = maxVelocity > 0.0f
+        ? std::max(0.0f, std::min(1.0f, pump.m_motor.getVelocity() / maxVelocity)) : 0.0f;
+    return m_maxPumpFlowRate * velocityRatio * (1000.0f / 60.0f);
+}
+
 void Dosierung::updateVolume()
 {
     const float elapsed = 1.0e-6f * static_cast<float>(m_VolumeTimer.elapsed_time().count());
     m_VolumeTimer.reset();
 
-    const float flow = std::max(0.0f, flowmeter.getFlowRate()) * (1000.0f / 60.0f);
+    const float flow = getFlowRateMlPerSecond();
     if (m_step != Step::Idle) {
         // Trapezoidal integration of forward flow in ml/s, including ramp-down.
         m_actVolume += 0.5f * (m_previousFlowRate + flow) * elapsed;
@@ -149,7 +178,7 @@ void Dosierung::updateStateMachine()
         case Step::RampUp:
         case Step::Running: {
             if (m_automatic) {
-                const float flow = std::max(0.0f, flowmeter.getFlowRate()) * (1000.0f / 60.0f);
+                const float flow = getFlowRateMlPerSecond();
                 // Pump::stop() brakes with a = configured velocity / stop ramp time.
                 // During ramp-up, stopping takes only the current fraction of that time.
                 const float stopTime = configuredVelocity > 0.0f

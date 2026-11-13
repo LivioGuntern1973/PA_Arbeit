@@ -13,6 +13,7 @@
 #include "Pump/pump.h"
 #include "FlowMeter/FlowMeter.h"
 #include <cstdint>
+#include <memory>
 
 #ifndef NEW_PES_BOARD_VERSION
 #error "Dosierung class works only with new PES-Board version!"
@@ -27,6 +28,7 @@ struct PumpParameters {
     PinName error_pin;           ///< Pin for the pump driver's active-low fault signal.
     float voltage_min = 0.0f;    ///< Minimum motor voltage in volts (default: 0.0f).
     float voltage_max = 24.0f;   ///< Maximum motor voltage in volts (default: 24.0f).
+    float max_flow_rate = 5.0f;  ///< Estimated flow in l/min at the motor's maximum velocity (default: 5.0f).
 };
 
 /**
@@ -40,7 +42,7 @@ struct FlowMeterParameters {
 };
 
 /**
- * @brief Dose milk or other liquids using a pump and an I2C flowmeter.
+ * @brief Dose milk or other liquids using a pump and an optional I2C flowmeter.
  *
  * The Dosierung class provides automatic volume dosing and continuous pumping
  * for manual operation. Its cyclic task uses the same period as FlowMeter
@@ -48,6 +50,9 @@ struct FlowMeterParameters {
  * During automatic dosing, the braking point is estimated from the current
  * flow rate, motor velocity and configured pump braking ramp. Volume is
  * integrated from the measured forward flow, including the braking ramp.
+ * Without a flowmeter, forward flow is estimated linearly from motor velocity
+ * and PumpParameters::max_flow_rate. The maximum velocity is read from
+ * pump.m_motor.getMaxVelocity(); ramp-up and ramp-down use the same dosing logic.
  *
  * A positive volume correction increases the requested dose; a negative
  * correction decreases it. Device errors stop the active command using the
@@ -57,7 +62,7 @@ struct FlowMeterParameters {
  * @par Dependencies
  * This class relies on external components:
  * - Pump: Motor control with configurable start and stop ramps.
- * - FlowMeter: I2C flow measurement, communication status and bubble detection.
+ * - FlowMeter (optional): I2C flow measurement, communication status and bubble detection.
  * - Mbed: Threads, ticker, timer and mutex synchronization.
  * - ThreadFlag: Periodic task signaling.
  *
@@ -69,43 +74,51 @@ struct FlowMeterParameters {
  * dosing. Use dispenseVolume() for a measured dose, or start() and stop()
  * for continuous pumping. Command and measurement methods are called from
  * thread context.
+ * To operate without a flowmeter, pass only PumpParameters. No sensor object
+ * or sensor task is created. When present, the public sensor is accessed
+ * through the flowmeter pointer, for example flowmeter->getFlowRate().
  *
- * @par Example
+ * @par Example with a flowmeter
+ * Replace the example I2C address 0x08 with the sensor's configured address.
  * @code{.cpp}
  * #include "Dosierung/Dosierung.h"
  * #include "MilkMatePinMap.h"
  *
  * int main()
  * {
- *     // Example address; replace it with the sensor's configured 7-bit address.
- *     const uint16_t flowmeter_address = 0x08;
  *     const PumpParameters pump_parameters = {
- *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR,
- *         milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
+ *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR, milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
  *     };
  *     const FlowMeterParameters flowmeter_parameters = {
- *         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, flowmeter_address, 100000
+ *         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x08
  *     };
  *
  *     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
  *     Dosierung dosing(pump_parameters, flowmeter_parameters);
- *     dosing.pump.setVelocity(12.0f);         // Configured pump velocity in volts.
- *     dosing.pump.setRampTimeStart(2.0f);    // Start ramp in seconds.
- *     dosing.pump.setRampTimeStop(0.5f);     // Braking ramp in seconds.
- *     dosing.setVolumeCorrection(2.0f);      // Add 2 ml to automatic doses.
- *
  *     enable_motor = 1;
- *     dosing.dispenseVolume(250.0f);         // Effective target: 252 ml.
+ *     dosing.dispenseVolume(250.0f); // Dose 250 ml.
  *
- *     while (true) {
- *         const float volume = dosing.getActVolume();
- *         const uint16_t errors = dosing.getState();
- *         const uint16_t bubbles = dosing.getBubbleState();
- *         printf("Volume: %.2f ml, errors: %u, bubbles: %u\n",
- *                volume, static_cast<unsigned int>(errors),
- *                static_cast<unsigned int>(bubbles));
- *         thread_sleep_for(100);
- *     }
+ *     while (true) { thread_sleep_for(100); }
+ * }
+ * @endcode
+ *
+ * @par Example without a flowmeter
+ * Uses the default maximum flow rating of 5 l/min; volume is estimated.
+ * @code{.cpp}
+ * #include "Dosierung/Dosierung.h"
+ * #include "MilkMatePinMap.h"
+ *
+ * int main()
+ * {
+ *     const PumpParameters pump_parameters = {
+ *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR, milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
+ *     };
+ *     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
+ *     Dosierung dosing(pump_parameters);
+ *     enable_motor = 1;
+ *     dosing.dispenseVolume(250.0f); // Estimate and dose 250 ml.
+ *
+ *     while (true) { thread_sleep_for(100); }
  * }
  * @endcode
  */
@@ -124,6 +137,16 @@ public:
                        const FlowMeterParameters& flowmeter_parameters);
 
     /**
+     * @brief Construct a Dosierung object without a flowmeter.
+     *
+     * Estimates flow from motor velocity and the maximum flow rating.
+     * No FlowMeter object, I2C connection or sensor task is created.
+     *
+     * @param pump_parameters Pump pins, voltage limits and maximum flow in l/min.
+     */
+    explicit Dosierung(const PumpParameters& pump_parameters);
+
+    /**
      * @brief Destroy the Dosierung object.
      *
      * Detaches the ticker, terminates the dosing task and commands a pump stop
@@ -138,6 +161,8 @@ public:
      * Nonpositive or nonfinite volumes are ignored. Device errors prevent a start.
      * The effective target is the requested volume plus the configured correction,
      * limited to a minimum of zero. A zero effective target commands a pump stop.
+     * Without a flowmeter, a nonpositive or nonfinite maximum flow rating
+     * prevents automatic dosing.
      *
      * @param volume The requested volume in milliliters, before volume correction.
      */
@@ -163,11 +188,13 @@ public:
     void stop();
 
     /**
-     * @brief Get the measured volume of the current or most recent command.
+     * @brief Get the measured or estimated volume of the current or most recent command.
      *
      * A new valid dispenseVolume() or start() command resets the measurement.
      * The measurement includes forward flow during ramp-up and ramp-down and
      * remains available after dosing finishes.
+     * Without a flowmeter, volume is estimated from motor velocity and the
+     * configured maximum flow rating instead of measured flow.
      *
      * @return float The dispensed volume in milliliters.
      */
@@ -197,6 +224,7 @@ public:
      * The cyclic task stops the active command on device errors. A cleared
      * error does not automatically restart pumping. Bubble detection is
      * excluded from the error status.
+     * Without a flowmeter, only pump errors are reported.
      *
      * @return uint16_t The combined status: pump error in bits 0..7 and flowmeter error in bits 8..15.
      * @retval 0x0000 No device error.
@@ -212,7 +240,7 @@ public:
      * Reporting only; the bubble level does not affect dosing or device error status.
      *
      * @return uint16_t The current bubble detection level.
-     * @retval 0 No air.
+     * @retval 0 No air, or no flowmeter configured.
      * @retval 1 Small amount of air.
      * @retval 2 Medium amount of air.
      * @retval 3 High amount of air.
@@ -226,11 +254,23 @@ public:
     Pump pump;
 
     /**
-     * @brief Public flowmeter object for accessing sensor parameters and measurements.
+     * @brief Optional public flowmeter for accessing sensor parameters and measurements.
+     *
+     * Null in sensorless mode. Use the arrow operator to access a configured
+     * sensor. Ownership remains with Dosierung.
      */
-    FlowMeter flowmeter;
+    const std::unique_ptr<FlowMeter> flowmeter;
 
 private:
+    /**
+     * @brief Construct the devices and task shared by both operating modes.
+     *
+     * @param pump_parameters Pump pins, voltage limits and maximum flow in l/min.
+     * @param flowmeter_parameters Sensor configuration, or nullptr for sensorless operation.
+     */
+    Dosierung(const PumpParameters& pump_parameters,
+              const FlowMeterParameters* flowmeter_parameters);
+
     static constexpr int64_t PERIOD_MUS = FlowMeter::PERIOD_MUS; ///< Task period in microseconds.
     static constexpr float PERIOD_SECONDS = 1.0e-6f * static_cast<float>(PERIOD_MUS); ///< Task period in seconds.
 
@@ -249,6 +289,7 @@ private:
     ThreadFlag m_ThreadFlag;     ///< Flag used to signal the dosing thread.
     mutable Mutex m_Mutex;      ///< Protects dosing commands, state and volume measurements.
     Timer m_VolumeTimer;        ///< Measures elapsed time between volume updates.
+    const float m_maxPumpFlowRate; ///< Rated forward flow in l/min at maximum motor velocity.
 
     Step m_step = Step::Idle;            ///< Current state-machine step.
     bool m_automatic = false;            ///< True for volume dosing; false for continuous pumping.
@@ -272,6 +313,14 @@ private:
      * @pre The caller holds m_Mutex.
      */
     void stopPumpWithMinimumRamp();
+
+    /**
+     * @brief Get the forward flow used for volume integration and braking.
+     *
+     * @return float The forward flow rate in milliliters per second.
+     * @pre The caller holds m_Mutex.
+     */
+    float getFlowRateMlPerSecond() const;
 
     /**
      * @brief Update the dispensed volume using trapezoidal flow integration.

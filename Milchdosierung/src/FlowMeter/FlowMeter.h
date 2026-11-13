@@ -28,7 +28,7 @@
 #ifndef FLOW_METER_H_
 #define FLOW_METER_H_
 
-#include "Mbed.h"
+#include "mbed.h"
 #include "ThreadFlag.h"
 #include "PESBoardPinMap.h"
 
@@ -39,6 +39,9 @@
 class FlowMeter
 {
 public:
+    // Shared with Dosierung so both tasks always use the same cycle time.
+    static constexpr int64_t PERIOD_MUS = 20000;
+
     /**
      * @brief Construct a new FlowMeter object.
      *
@@ -50,7 +53,7 @@ public:
     explicit FlowMeter(PinName i2c_sda_pin,
                        PinName i2c_scl_pin,
                        uint16_t i2c_address,
-                       uint16_t i2c_baudrate);
+                       uint32_t i2c_baudrate);
 
     /**
      * @brief Destroy the FlowMeter object.
@@ -109,14 +112,18 @@ public:
      */
     uint8_t getBubbleDetectionLevel() const;
 
+    /** Get I2C communication status: 0 = no error, 1 = last transfer failed. */
+    uint16_t getError() const;
+
 private:
-    static constexpr int64_t PERIOD_MUS = 20000;
     I2C m_i2c;
     uint16_t m_i2cAddress;
 
     Thread m_Thread;
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
+    mutable Mutex m_Mutex;
+    uint16_t m_error = 0;
 
     // motor parameters
     float m_velocity_max;

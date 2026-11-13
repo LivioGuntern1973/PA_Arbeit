@@ -1,5 +1,7 @@
 #include "FlowMeter.h"
 
+constexpr int64_t FlowMeter::PERIOD_MUS;
+
 namespace {
 
 uint16_t readU16LE(const uint8_t* data)
@@ -35,7 +37,7 @@ int32_t readI32LE(const uint8_t* data)
 FlowMeter::FlowMeter(PinName i2c_sda_pin,
                      PinName i2c_scl_pin,
                      uint16_t i2c_address,
-                     uint16_t i2c_baudrate)
+                     uint32_t i2c_baudrate)
     : m_i2c(i2c_sda_pin, i2c_scl_pin),
       m_i2cAddress(i2c_address),
       m_Thread(osPriorityNormal)
@@ -60,37 +62,50 @@ FlowMeter::FlowMeter(PinName i2c_sda_pin,
 FlowMeter::~FlowMeter()
 {
     m_Ticker.detach();
+    ScopedMutexLock lock(m_Mutex);
     m_Thread.terminate();
 }
 
 float FlowMeter::getFlowRate() const
 {
+    ScopedMutexLock lock(m_Mutex);
     return m_flowRate;
 }
 
 float FlowMeter::getTemperaturePT1000() const
 {
+    ScopedMutexLock lock(m_Mutex);
     return m_temperaturePt1000;
 }
 
 float FlowMeter::getTemperatureSoS() const
 {
+    ScopedMutexLock lock(m_Mutex);
     return m_temperatureSoS;
 }
 
 float FlowMeter::getSpeedOfSound() const
 {
+    ScopedMutexLock lock(m_Mutex);
     return m_speedOfSound;
 }
 
 void FlowMeter::setBubbleDetectionLevel(uint8_t level)
 {
+    ScopedMutexLock lock(m_Mutex);
     m_bubbleDetectionLevel = (level <= 4) ? level : 4;
 }
 
 uint8_t FlowMeter::getBubbleDetectionLevel() const
 {
+    ScopedMutexLock lock(m_Mutex);
     return m_bubbleDetectionLevel;
+}
+
+uint16_t FlowMeter::getError() const
+{
+    ScopedMutexLock lock(m_Mutex);
+    return m_error;
 }
 
 void FlowMeter::threadTask()
@@ -102,16 +117,23 @@ void FlowMeter::threadTask()
     while (true) {
         ThisThread::flags_wait_any(m_ThreadFlag);
 
-        // Messwert-Block anfordern
+        // Request the measurement block.
         if (m_i2c.write(address, command, sizeof(command), false) != 0) {
+            ScopedMutexLock lock(m_Mutex);
+            m_error = 1;
             continue;
         }
 
-        // 24 Bytes aus dem Sensor lesen
+        // Read 24 bytes from the sensor.
         if (m_i2c.read(address, reinterpret_cast<char*>(data),
                        sizeof(data), false) != 0) {
+            ScopedMutexLock lock(m_Mutex);
+            m_error = 1;
             continue;
         }
+
+        ScopedMutexLock lock(m_Mutex);
+        m_error = 0;
 
         // Register 0: Flow rate, 0.01 l/h -> l/min
         m_flowRate = static_cast<float>(readI32LE(&data[0])) / 6000.0f;

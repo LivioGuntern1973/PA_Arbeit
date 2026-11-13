@@ -28,8 +28,9 @@
 #ifndef PUMP_H_
 #define PUMP_H_
 
-#include "Mbed.h"
-#include <DCMotorOpenLoop\DCMotorOpenLoop.h>
+#include "mbed.h"
+#include "ThreadFlag.h"
+#include <DCMotorOpenLoop/DCMotorOpenLoop.h>
 #include "PESBoardPinMap.h"
 
 #include <MilkMate.h>
@@ -69,6 +70,9 @@ public:
      * @brief Stop the pump.
      */
     void stop(void);
+
+    /** Stop without a braking ramp; the motor output updates on its next cycle. */
+    void stopImmediately();
 
     /**
      * @brief Set the target velocity of the pump.

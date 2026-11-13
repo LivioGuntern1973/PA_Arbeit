@@ -130,6 +130,7 @@ private:
     Thread m_Thread;
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
+    Mutex m_TaskMutex; ///< Prevents task termination during an I2C transfer or measurement update.
     mutable Mutex m_Mutex;
     uint16_t m_error = 0;
 

@@ -28,7 +28,7 @@ struct PumpParameters {
     PinName error_pin;           ///< Pin for the pump driver's active-low fault signal.
     float voltage_min = 0.0f;    ///< Minimum motor voltage in volts (default: 0.0f).
     float voltage_max = 24.0f;   ///< Maximum motor voltage in volts (default: 24.0f).
-    float max_flow_rate = 5.0f;  ///< Estimated flow in l/min at the motor's maximum velocity (default: 5.0f).
+    float max_flow_rate = 5.0f;  ///< Estimated flow in l/min at voltage_max (default: 5.0f).
 };
 
 /**
@@ -51,8 +51,11 @@ struct FlowMeterParameters {
  * flow rate, motor velocity and configured pump braking ramp. Volume is
  * integrated from the measured forward flow, including the braking ramp.
  * Without a flowmeter, forward flow is estimated linearly from motor velocity
- * and PumpParameters::max_flow_rate. The maximum velocity is read from
- * pump.m_motor.getMaxVelocity(); ramp-up and ramp-down use the same dosing logic.
+ * and PumpParameters::max_flow_rate, referenced to the constructor's voltage_max.
+ * Pump uses a motor constant of 60 rpm/V, so its motor ramp velocity in rotations
+ * per second numerically equals the voltage command. Reducing the motor velocity
+ * limit therefore also reduces the estimated flow. Ramp-up and ramp-down use
+ * the same dosing logic in both operating modes.
  *
  * A positive volume correction increases the requested dose; a negative
  * correction decreases it. Device errors stop the active command using the
@@ -69,7 +72,9 @@ struct FlowMeterParameters {
  * @par Usage
  * Create PumpParameters and FlowMeterParameters with the required pins and
  * device settings, then pass both to the Dosierung constructor. Configure
- * the public pump and flowmeter objects before starting a command. Enable
+ * the public pump and flowmeter objects before starting a command. Configure
+ * the pump only while idle and serialize external configuration calls; its
+ * public motor and configuration methods do not use the dosing mutex. Enable
  * the motor driver externally and keep the Dosierung object alive while
  * dosing. Use dispenseVolume() for a measured dose, or start() and stop()
  * for continuous pumping. Command and measurement methods are called from
@@ -149,8 +154,10 @@ public:
     /**
      * @brief Destroy the Dosierung object.
      *
-     * Detaches the ticker, terminates the dosing task and commands a pump stop
-     * using the minimum braking ramp before the owned devices are destroyed.
+     * Detaches the ticker, wakes and joins the dosing task, then commands a pump
+     * stop using the minimum braking ramp. Waits for zero PWM before the owned
+     * devices are destroyed. Must be called from another thread, with no other
+     * callers still accessing this object.
      */
     virtual ~Dosierung();
 
@@ -159,10 +166,14 @@ public:
      *
      * Starts a new measurement and replaces any active dosing command.
      * Nonpositive or nonfinite volumes are ignored. Device errors prevent a start.
+     * Rejected commands preserve the current command and recorded volume.
      * The effective target is the requested volume plus the configured correction,
-     * limited to a minimum of zero. A zero effective target commands a pump stop.
+     * limited to a minimum of zero and captured when the command is accepted.
+     * A nonfinite sum is rejected. A zero effective target commands a pump stop
+     * without starting the motor.
      * Without a flowmeter, a nonpositive or nonfinite maximum flow rating
-     * prevents automatic dosing.
+     * prevents automatic dosing. Pump voltage, velocity limit and configured
+     * forward velocity must be finite and positive; ramp times must be finite.
      *
      * @param volume The requested volume in milliliters, before volume correction.
      */
@@ -174,7 +185,8 @@ public:
      * Resets the measured volume and replaces any active dosing command.
      * Uses the pump's configured velocity and start ramp. Volume correction
      * does not apply. Pumping continues until stop() or a device error;
-     * an existing device error prevents a start.
+     * an existing device error or invalid pump configuration prevents a start
+     * without resetting the recorded volume.
      */
     void start();
 
@@ -204,8 +216,9 @@ public:
      * @brief Set the automatic volume correction in ml.
      *
      * Positive values dispense more volume, negative values dispense less.
-     * The effective target is max(0, requested volume + correction).
-     * Nonfinite corrections are ignored; continuous pumping is unaffected.
+     * The next automatic command uses max(0, requested volume + correction).
+     * Nonfinite corrections are ignored; active commands and continuous pumping
+     * are unaffected.
      *
      * @param volume The additive volume correction in milliliters.
      */
@@ -289,14 +302,17 @@ private:
     ThreadFlag m_ThreadFlag;     ///< Flag used to signal the dosing thread.
     mutable Mutex m_Mutex;      ///< Protects dosing commands, state and volume measurements.
     Timer m_VolumeTimer;        ///< Measures elapsed time between volume updates.
-    const float m_maxPumpFlowRate; ///< Rated forward flow in l/min at maximum motor velocity.
+    const float m_maxPumpVoltage; ///< Constructor voltage_max in volts, defining the rated flow.
+    const float m_maxPumpFlowRate; ///< Rated forward flow in l/min at m_maxPumpVoltage; zero if invalid.
 
     Step m_step = Step::Idle;            ///< Current state-machine step.
+    bool m_shutdownRequested = false;   ///< Requests cooperative task exit; protected by m_Mutex.
     bool m_automatic = false;            ///< True for volume dosing; false for continuous pumping.
-    float m_targetVolume = 0.0f;         ///< Requested volume in ml before correction.
+    float m_targetVolume = 0.0f;         ///< Effective automatic target in ml, including correction.
     float m_actVolume = 0.0f;            ///< Integrated forward volume in ml.
     float m_previousFlowRate = 0.0f;     ///< Previous forward flow sample in ml/s.
     float m_volumeCorrection = 0.0f;     ///< Additive automatic volume correction in ml.
+    std::chrono::microseconds m_previousVolumeTime{0}; ///< Timestamp of the previous flow sample.
 
     /**
      * @brief Initialize a command and start the pump when permitted.
@@ -337,7 +353,7 @@ private:
     void updateStateMachine();
 
     /**
-     * @brief Wait for ticker signals and execute the cyclic dosing task.
+     * @brief Wait for ticker signals, execute cyclic work and exit on shutdown.
      */
     void threadTask();
 

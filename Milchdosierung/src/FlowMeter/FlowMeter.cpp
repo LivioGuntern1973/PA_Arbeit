@@ -62,6 +62,7 @@ FlowMeter::FlowMeter(PinName i2c_sda_pin,
 FlowMeter::~FlowMeter()
 {
     m_Ticker.detach();
+    ScopedMutexLock taskLock(m_TaskMutex);
     ScopedMutexLock lock(m_Mutex);
     m_Thread.terminate();
 }
@@ -116,6 +117,7 @@ void FlowMeter::threadTask()
 
     while (true) {
         ThisThread::flags_wait_any(m_ThreadFlag);
+        ScopedMutexLock taskLock(m_TaskMutex);
 
         // Request the measurement block.
         if (m_i2c.write(address, command, sizeof(command), false) != 0) {

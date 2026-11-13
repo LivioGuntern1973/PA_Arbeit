@@ -30,7 +30,7 @@ Dosierung::~Dosierung()
     m_Ticker.detach();
     ScopedMutexLock lock(m_Mutex);
     m_Thread.terminate();
-    pump.stopImmediately();
+    stopPumpWithMinimumRamp();
 }
 
 void Dosierung::dispenseVolume(float volume)
@@ -53,7 +53,7 @@ void Dosierung::stop()
 {
     ScopedMutexLock lock(m_Mutex);
     updateVolume();
-    pump.stopImmediately();
+    stopPumpWithMinimumRamp();
     m_automatic = false;
     if (m_step != Step::Idle) {
         m_step = Step::RampDown;
@@ -66,18 +66,18 @@ float Dosierung::getActVolume() const
     return m_actVolume;
 }
 
-void Dosierung::setStopOffsetVolume(float volume)
+void Dosierung::setVolumeCorrection(float volume)
 {
     if (std::isfinite(volume)) {
         ScopedMutexLock lock(m_Mutex);
-        m_stopOffsetVolume = volume;
+        m_volumeCorrection = volume;
     }
 }
 
-float Dosierung::getStopOffsetVolume() const
+float Dosierung::getVolumeCorrection() const
 {
     ScopedMutexLock lock(m_Mutex);
-    return m_stopOffsetVolume;
+    return m_volumeCorrection;
 }
 
 uint16_t Dosierung::getState()
@@ -99,8 +99,8 @@ void Dosierung::beginDispensing(float volume, bool automatic)
     m_previousFlowRate = std::max(0.0f, flowmeter.getFlowRate()) * (1000.0f / 60.0f);
     m_VolumeTimer.reset();
 
-    if (getState() != 0 || (automatic && volume <= m_stopOffsetVolume)) {
-        pump.stopImmediately();
+    if (getState() != 0 || (automatic && volume + m_volumeCorrection <= 0.0f)) {
+        stopPumpWithMinimumRamp();
         m_step = Step::RampDown;
         m_automatic = false;
         return;
@@ -108,6 +108,14 @@ void Dosierung::beginDispensing(float volume, bool automatic)
 
     pump.start();
     m_step = Step::RampUp;
+}
+
+void Dosierung::stopPumpWithMinimumRamp()
+{
+    const float previousRampTime = pump.getRampTimeStop();
+    pump.setRampTimeStop(0.0f); // The Pump setter clamps this to its minimum (0.1 s).
+    pump.stop(); // Applies the acceleration immediately; restoring the parameter does not change it.
+    pump.setRampTimeStop(previousRampTime);
 }
 
 void Dosierung::updateVolume()
@@ -126,7 +134,7 @@ void Dosierung::updateVolume()
 void Dosierung::updateStateMachine()
 {
     if (m_step != Step::Idle && getState() != 0) {
-        pump.stopImmediately();
+        stopPumpWithMinimumRamp();
         m_automatic = false;
         m_step = Step::RampDown;
     }
@@ -147,7 +155,7 @@ void Dosierung::updateStateMachine()
                 const float stopTime = configuredVelocity > 0.0f
                     ? pump.getRampTimeStop() * velocity / configuredVelocity : 0.0f;
                 const float brakingVolume = 0.5f * flow * stopTime;
-                const float remainingVolume = m_targetVolume - m_stopOffsetVolume - m_actVolume;
+                const float remainingVolume = std::max(0.0f, m_targetVolume + m_volumeCorrection) - m_actVolume;
 
                 // Place the decision at the middle of a cycle to reduce sampling error.
                 if (remainingVolume <= brakingVolume + 0.5f * flow * PERIOD_SECONDS) {

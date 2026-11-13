@@ -39,7 +39,9 @@
 class FlowMeter
 {
 public:
-    // Shared with Dosierung so both tasks always use the same cycle time.
+    /**
+     * @brief Task period in microseconds, shared with Dosierung.
+     */
     static constexpr int64_t PERIOD_MUS = 20000;
 
     /**
@@ -112,7 +114,13 @@ public:
      */
     uint8_t getBubbleDetectionLevel() const;
 
-    /** Get I2C communication status: 0 = no error, 1 = last transfer failed. */
+    /**
+     * @brief Get the status of the most recent I2C measurement transfer.
+     *
+     * @return uint16_t The communication error code; initially zero before the first transfer.
+     * @retval 0 No communication error.
+     * @retval 1 The most recent I2C write or read failed.
+     */
     uint16_t getError() const;
 
 private:

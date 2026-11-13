@@ -1,7 +1,5 @@
 #include "Pump.h"
 
-constexpr int64_t Pump::PERIOD_MUS;
-
 
 Pump::Pump(PinName pwm_pin,
                    PinName direction_pin,
@@ -37,7 +35,6 @@ Pump::~Pump()
 void Pump::start(void)
 {
     m_motor.setMaxAcceleration(m_velocity/m_rampTimeStart);
-    m_motor.enableMotionPlanner();
     m_motor.setVelocity(m_velocity);
 }
 
@@ -45,13 +42,6 @@ void Pump::stop(void)
 {
     m_motor.setMaxAcceleration(m_velocity/m_rampTimeStop);
     m_motor.setVelocity(0.0f);
-}
-
-void Pump::stopImmediately()
-{
-    m_motor.setVelocity(0.0f);
-    m_motor.disableMotionPlanner();
-    m_motor.setMotionPlannerVelocity(0.0f);
 }
 
 

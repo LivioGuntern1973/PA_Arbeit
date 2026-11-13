@@ -5,8 +5,8 @@ Pump::Pump(PinName pwm_pin,
                    PinName direction_pin,
                    PinName error_pin,
                    float voltage_min,
-                   float voltage_max) : m_Thread(osPriorityNormal),
-                                        m_motor(pwm_pin, direction_pin, 1.0f, 60.0f, voltage_max, voltage_min/voltage_max),
+                   float voltage_max) : m_motor(pwm_pin, direction_pin, 1.0f, 60.0f, voltage_max, voltage_min/voltage_max),
+                                        m_Thread(osPriorityNormal),
                                         m_ErrorPin(error_pin)
 {
 
@@ -100,7 +100,7 @@ void Pump::threadTask()
     while (true) {
         ThisThread::flags_wait_any(m_ThreadFlag); // wait until the ticker starts the next cycle
         // insert code for cyclic work
-        float val = m_motor.getPWM();
+        //float val = m_motor.getPWM();
         //printf("%f\n", val);
     }
 }

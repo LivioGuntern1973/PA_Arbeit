@@ -77,8 +77,9 @@ struct FlowMeterParameters {
  * public motor and configuration methods do not use the dosing mutex. Enable
  * the motor driver externally and keep the Dosierung object alive while
  * dosing. Use dispenseVolume() for a measured dose, or start() and stop()
- * for continuous pumping. Command and measurement methods are called from
- * thread context.
+ * for continuous pumping. Use isPumping() to wait until ramp-down and the final
+ * volume update have completed. Check getState() separately for device errors.
+ * Command and measurement methods are called from thread context.
  * To operate without a flowmeter, pass only PumpParameters. No sensor object
  * or sensor task is created. When present, the public sensor is accessed
  * through the flowmeter pointer, for example flowmeter->getFlowRate().
@@ -101,7 +102,10 @@ struct FlowMeterParameters {
  *     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
  *     Dosierung dosing(pump_parameters, flowmeter_parameters);
  *     enable_motor = 1;
- *     dosing.dispenseVolume(250.0f); // Dose 250 ml.
+ *     dosing.dispenseVolume(600.0f); // Dose 6 dl = 600 ml.
+ *     while (dosing.isPumping()) { thread_sleep_for(20); }
+ *     printf("Volume: %.1f ml, error: 0x%04x\n", dosing.getActVolume(),
+ *            static_cast<unsigned int>(dosing.getState()));
  *
  *     while (true) { thread_sleep_for(100); }
  * }
@@ -121,7 +125,10 @@ struct FlowMeterParameters {
  *     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
  *     Dosierung dosing(pump_parameters);
  *     enable_motor = 1;
- *     dosing.dispenseVolume(250.0f); // Estimate and dose 250 ml.
+ *     dosing.dispenseVolume(600.0f); // Estimate and dose 6 dl = 600 ml.
+ *     while (dosing.isPumping()) { thread_sleep_for(20); }
+ *     printf("Estimated volume: %.1f ml, error: 0x%04x\n", dosing.getActVolume(),
+ *            static_cast<unsigned int>(dosing.getState()));
  *
  *     while (true) { thread_sleep_for(100); }
  * }
@@ -198,6 +205,23 @@ public:
      * previous ramp setting. Volume measurement continues during ramp-down.
      */
     void stop();
+
+    /**
+     * @brief Check whether a pump operation is still active.
+     *
+     * Becomes true as soon as a start() or dispenseVolume() command is accepted,
+     * including the time before the motor's first ramp update. Remains true
+     * during ramp-up, running and ramp-down, including braking after stop() or
+     * a device error. Becomes false when the cyclic task confirms standstill
+     * and completes the final volume update, normally within one 20 ms cycle.
+     * Works with and without a flowmeter. This method is mutex-protected and
+     * must be called from thread context. Use getState() to query device errors.
+     *
+     * @return bool Whether the pump operation is still active.
+     * @retval true A pump operation is starting, running or braking.
+     * @retval false No pump operation is active.
+     */
+    bool isPumping() const;
 
     /**
      * @brief Get the measured or estimated volume of the current or most recent command.

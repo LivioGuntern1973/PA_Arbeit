@@ -94,6 +94,12 @@ void Dosierung::stop()
     }
 }
 
+bool Dosierung::isPumping() const
+{
+    ScopedMutexLock lock(m_Mutex);
+    return m_step != Step::Idle;
+}
+
 float Dosierung::getActVolume() const
 {
     ScopedMutexLock lock(m_Mutex);

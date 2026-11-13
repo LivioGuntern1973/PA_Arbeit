@@ -1,123 +1,133 @@
 #include "mbed.h"
-#include "PESBoardPinMap.h"
 #include "MilkMatePinMap.h"
-
-// drivers
 #include "DebounceIn.h"
-#include "FastPWM.h"
-#include <DCMotorOpenLoop/DCMotorOpenLoop.h>
-#include <Pump/Pump.h>
+#include "Dosierung/Dosierung.h"
 
-bool user_button_latch = false; // this variable will be toggled via the user button (blue button)
-bool user_button_edge = false; // this variable will be set for one cycle when pressing the blue button
-bool manual_mode = false; //
-#define AND_MANUAL_MODE(transition) ((transition) && (manual_mode == 0 or user_button_edge))
+#include <atomic>
 
-// objects for user button (blue button) handling on nucleo board
-DebounceIn user_button(BUTTON1);   // create DebounceIn to evaluate the user button
-void toggle_user_button_state_fcn(); // custom function which is getting executed when user button gets pressed
+std::atomic<bool> user_button_pending{false};
+DebounceIn user_button(milk_pins::USER_BUTTON);
+void on_user_button_pressed();
 
-// main runs as an own thread
 int main()
 {
-    // attach button fall function address to user button object
-    user_button.fall(&toggle_user_button_state_fcn);
+    constexpr int main_task_period_ms = 20;
+    constexpr float target_volume_ml = 600.0f; // 6 dl = 600 ml.
+    constexpr float voltage_min = 1.4f;
+    constexpr float voltage_max = 12.0f;
+    constexpr float max_flow_rate = 5.0f; // Estimated l/min at voltage_max; calibrate for the pump.
 
-    // while loop gets executed every main_task_period_ms milliseconds, this is a simple approach to repeatedly execute main
-    const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, therefore the main task will run 50 times per second
-    Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
+    DigitalOut user_led(milk_pins::USER_LED, 0);
+    DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
 
+    const PumpParameters pump_parameters = {
+        milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR, milk_pins::MOTOR_ERROR[0],
+        voltage_min, voltage_max, max_flow_rate
+    };
+    Dosierung dosing(pump_parameters); // No FlowMeter object, sensor task or I2C connection.
+    dosing.pump.setRampTimeStart(3.0f);
+    dosing.pump.setRampTimeStop(0.1f);
+    enable_motor = 1;
+    user_button.fall(&on_user_button_pressed);
 
-    DigitalOut user_led(LED1); // led on nucleo board
-    DigitalOut enable_motors(PB_ENABLE_DCMOTORS); // create object to enable power electronics for the dc motors
-
-
-    // motor M1
-    const float voltage_max = 12.0f; // maximum voltage of battery packs
-    const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
-    Pump pump1(PB_PWM_M1, PB_DIR_M1, PC_0, voltage_min, voltage_max);
-    pump1.setRampTimeStart(3.0);
-    pump1.setRampTimeStop(0.0);
-    enable_motors = 1;
-
-    // state machine
+    Timer main_task_timer;
     Timer step_duration_timer;
     uint16_t step = 0;
-    uint16_t step_old = 9999; // set above 0 to detect a step change at startup
-
-
+    uint16_t step_old = 9999;
+    uint16_t command_error = 0;
+    unsigned int status_cycles = 0;
     main_task_timer.start();
+
+    printf("Sensorless dosing test: press the user button to dispense 600 ml.\n");
 
     while (true) {
         main_task_timer.reset();
-        
-        switch (step) {
-            case 0:
-                
+        // Consume each interrupt event once; button presses during dosing are ignored.
+        const bool user_button_edge = user_button_pending.exchange(false);
+        const uint16_t device_error = dosing.getState(); // Device errors, not dosing progress.
 
-                if (user_button_edge)
-                {
+        if ((step == 2 || step == 3) && device_error != 0) {
+            if (command_error == 0) {
+                dosing.stop();
+            }
+            command_error |= device_error;
+            step = 3;
+        }
+
+        switch (step) {
+            case 0: // Wait for a new button press.
+                if (user_button_edge) {
                     step = 1;
                 }
                 break;
-            case 1:
-                pump1.start();
+
+            case 1: // Start exactly one automatic dose.
+                if (device_error != 0) {
+                    printf("Start rejected: device error 0x%04x. Press again after recovery.\n",
+                           static_cast<unsigned int>(device_error));
+                    step = 0;
+                    break;
+                }
+                command_error = 0;
+                dosing.dispenseVolume(target_volume_ml);
                 step = 2;
                 break;
-            case 2:
-                if (AND_MANUAL_MODE(duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 3000))
-                {
+
+            case 2: // Confirm motor startup before treating zero PWM as completion.
+                if (dosing.pump.m_motor.getPWM() > 0.0f) {
                     step = 3;
                 }
                 break;
-            case 3:
-                pump1.stop();
-                step = 4;
-                break;
-            case 4:
-                if (AND_MANUAL_MODE(duration_cast<milliseconds>(step_duration_timer.elapsed_time()).count() >= 1000))
-                {
-                    step = 5;
+
+            case 3: // Dosierung plans braking and stops the pump automatically.
+                if (dosing.pump.m_motor.getPWM() == 0.0f) {
+                    step = 4;
                 }
                 break;
+
+            case 4: // Allow the final volume update and a short pause before the next dose.
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                        step_duration_timer.elapsed_time()).count() >= 1000) {
+                    printf("Dose %s: estimated volume %.1f ml, error 0x%04x.\n",
+                           command_error == 0 ? "finished" : "aborted",
+                           dosing.getActVolume(), static_cast<unsigned int>(command_error));
+                    printf("Press the user button for another 600 ml dose.\n");
+                    step = 0;
+                }
+                break;
+
             default:
+                dosing.stop();
                 step = 0;
+                break;
         }
 
-        //printf("%d\n", pump1.getError());
-
-
-        // detect a change of the step
-        if (step != step_old)
-        {
+        const bool step_changed = step != step_old;
+        if (step_changed) {
             step_duration_timer.reset();
             step_duration_timer.start();
             step_old = step;
         }
-        
-        printf("%d\n", step);
 
-
-        // user button edge
-        if (user_button_edge)
-        {
-            user_button_edge = 0;
+        if (step_changed || ++status_cycles >= 10) {
+            printf("step=%u, estimated_volume=%.1f ml, error=0x%04x\n",
+                   static_cast<unsigned int>(step), dosing.getActVolume(),
+                   static_cast<unsigned int>(device_error));
+            status_cycles = 0;
         }
-        
-        // toggling the user led
+
         user_led = !user_led;
-        // read timer and make the main thread sleep for the remaining time span (non blocking)
-        int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
-        if (main_task_period_ms - main_task_elapsed_time_ms < 0)
-            printf("Warning: Main task took longer than main_task_period_ms\n");
-        else
-            thread_sleep_for(main_task_period_ms - main_task_elapsed_time_ms);
+        const int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            main_task_timer.elapsed_time()).count();
+        if (elapsed_ms < main_task_period_ms) {
+            thread_sleep_for(main_task_period_ms - elapsed_ms);
+        } else if (elapsed_ms > main_task_period_ms) {
+            printf("Warning: main task exceeded its 20 ms period.\n");
+        }
     }
 }
 
-void toggle_user_button_state_fcn()
+void on_user_button_pressed()
 {
-    // toggle user_button_latch if the button was pressed
-    user_button_latch = !user_button_latch;
-    user_button_edge = 1;
+    user_button_pending.store(true);
 }

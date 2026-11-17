@@ -15,7 +15,7 @@ int main()
     constexpr float target_volume_ml = 600.0f; // 6 dl = 600 ml.
     constexpr float voltage_min = 1.4f;
     constexpr float voltage_max = 12.0f;
-    constexpr float max_flow_rate = 5.0f; // Estimated l/min at voltage_max; calibrate for the pump.
+    constexpr float max_flow_rate = 3.6f; // Estimated l/min at voltage_max; calibrate for the pump.
 
     DigitalOut user_led(milk_pins::USER_LED, 0);
     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);

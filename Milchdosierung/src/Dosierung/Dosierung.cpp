@@ -65,6 +65,7 @@ Dosierung::~Dosierung()
     while (pump.m_motor.getPWM() != 0.0f) {
         ThisThread::sleep_for(std::chrono::milliseconds{1});
     }
+    pump.disable();
     m_VolumeTimer.stop();
 }
 
@@ -161,6 +162,7 @@ void Dosierung::beginDispensing(float volume, bool automatic)
         return;
     }
 
+    pump.enable();
     pump.start();
     m_step = Step::RampUp;
 }
@@ -242,6 +244,7 @@ void Dosierung::updateStateMachine()
 
         case Step::RampDown:
             if (velocity == 0.0f) {
+                pump.disable();
                 m_step = Step::Idle;
                 m_automatic = false;
             }

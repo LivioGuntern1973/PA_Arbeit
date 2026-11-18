@@ -159,8 +159,8 @@ private:
     Thread m_Thread;
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
-    DigitalIn m_ErrorPin;
     DigitalOut m_EnablePin;
+    DigitalIn m_ErrorPin;
 
 
     // signals

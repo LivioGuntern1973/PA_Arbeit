@@ -1,14 +1,15 @@
 {
   "name": "riverdi-eve",
-  "description": "EVE and application layers; an Mbed SPI/GPIO host implementation is required for display use.",
+  "description": "Riverdi EVE and application layers with an Mbed OS SPI/GPIO host for the MilkMate pins.",
   "build": {
     "flags": "-DSTM32_PLATFORM_COCMD_BURST",
-    "includeDir": "host_layer/stm32f4",
+    "includeDir": "host_layer/mbed",
     "srcDir": ".",
     "srcFilter": [
       "-<*>",
       "+<eve_layer/*.c>",
-      "+<app_layer/*.c>"
+      "+<app_layer/*.c>",
+      "+<host_layer/mbed/*.cpp>"
     ]
   }
 }

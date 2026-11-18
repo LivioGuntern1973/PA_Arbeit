@@ -19,6 +19,7 @@ constexpr PinName DISPLAY_SCL = PA_8;
 constexpr PinName DISPLAY_CS = PC_7;
 constexpr PinName DISPLAY_DC = PC_6;
 constexpr PinName DISPLAY_RESET = PB_2;
+constexpr PinName DISPLAY_INT = PA_10;
 constexpr PinName RASPI_TX = PA_0;
 constexpr PinName RASPI_RX = PA_1;
 constexpr PinName LED_DATA = PC_8;

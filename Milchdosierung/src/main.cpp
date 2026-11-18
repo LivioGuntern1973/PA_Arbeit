@@ -5,7 +5,7 @@
 
 #include <atomic>
 
-// Riverdi EVE C API; display use still requires an Mbed SPI/GPIO host layer.
+// Riverdi EVE C API with the Mbed SPI/GPIO host layer.
 extern "C" {
 #include "platform.h"
 #include "App_Common.h"

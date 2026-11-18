@@ -1,0 +1,14 @@
+{
+  "name": "riverdi-eve",
+  "description": "EVE and application layers; an Mbed SPI/GPIO host implementation is required for display use.",
+  "build": {
+    "flags": "-DSTM32_PLATFORM_COCMD_BURST",
+    "includeDir": "host_layer/stm32f4",
+    "srcDir": ".",
+    "srcFilter": [
+      "-<*>",
+      "+<eve_layer/*.c>",
+      "+<app_layer/*.c>"
+    ]
+  }
+}

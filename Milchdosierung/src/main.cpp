@@ -5,6 +5,12 @@
 
 #include <atomic>
 
+// Riverdi EVE C API; display use still requires an Mbed SPI/GPIO host layer.
+extern "C" {
+#include "platform.h"
+#include "App_Common.h"
+}
+
 std::atomic<bool> user_button_pending{false};
 DebounceIn user_button(milk_pins::USER_BUTTON);
 void on_user_button_pressed();

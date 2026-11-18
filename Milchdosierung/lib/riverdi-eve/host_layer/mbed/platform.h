@@ -60,6 +60,20 @@ void platform_spi_recv_data(Gpu_Hal_Context_t *host, uchar8_t *data, uint16_t si
 bool_t platform_gpio_init(Gpu_Hal_Context_t *host, gpio_name gpio);
 bool_t platform_gpio_value(Gpu_Hal_Context_t *host, gpio_name gpio, gpio_val value);
 
+/** Callback for the falling edge of INT_N. Runs in ISR context: only signal
+ * the display thread here; perform SPI transfers and EVE processing there.
+ */
+typedef void (*platform_interrupt_callback_t)(void *context);
+
+/** Register after Gpu_Hal_Open(), before enabling interrupt sources in EVE.
+ * Pass a null callback to detach. Registration/replacement/close must be
+ * serialized by the caller in thread context. The callback context must remain
+ * valid until detached or Gpu_Hal_Close(). Returns FALSE for an unopened host.
+ */
+bool_t platform_set_interrupt_callback(Gpu_Hal_Context_t *host,
+                                     platform_interrupt_callback_t callback,
+                                     void *context);
+
 #ifdef __cplusplus
 }
 #endif

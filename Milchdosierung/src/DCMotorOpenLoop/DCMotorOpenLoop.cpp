@@ -319,8 +319,9 @@ void DCMotorOpenLoop::threadTask()
 
 #ifdef NEW_PES_BOARD_VERSION
         const float pwm = pwm_magnitude;
-        const bool direction = (velocity_setpoint > 0.0f);
-        m_Direction.write(direction);
+        if (velocity_setpoint != 0.0f) {
+            m_Direction.write(velocity_setpoint > 0.0f);
+        }
 #else
         const float signed_pwm = (velocity_setpoint >= 0.0f) ? pwm_magnitude : -pwm_magnitude;
         const float pwm = 0.5f + 0.5f * signed_pwm;

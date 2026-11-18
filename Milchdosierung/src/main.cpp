@@ -21,8 +21,12 @@ int main()
     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
 
     const PumpParameters pump_parameters = {
-        milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR, milk_pins::MOTOR_ERROR[0],
-        voltage_min, voltage_max, max_flow_rate
+        milk_pins::MOTOR_PWM[0], 
+        milk_pins::MOTOR_DIR, 
+        milk_pins::MOTOR_ERROR[0],
+        voltage_min, 
+        voltage_max, 
+        max_flow_rate
     };
     Dosierung dosing(pump_parameters); // No FlowMeter object, sensor task or I2C connection.
     enable_motor = 1;

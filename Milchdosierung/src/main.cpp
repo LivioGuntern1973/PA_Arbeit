@@ -2,9 +2,6 @@
 #include "MilkMatePinMap.h"
 #include "DebounceIn.h"
 #include "Dosierung/Dosierung.h"
-#include "riverdi-eve/app_layer/App_Common.h"
-#include "riverdi-eve/riverdi_modules/modules.h"
-#include "riverdi-eve/host_layer/stm32f4/platform.h"
 
 #include <atomic>
 

@@ -64,6 +64,10 @@ The `opt` argument is ignored: the EVE layer controls CS explicitly through
 `platform_gpio_value()`. Reads transmit zero-valued dummy bytes. Transfers with
 an invalid context or buffer set `host.status` to `GPU_HAL_STATUS_ERROR`.
 
+Check `host.status` after an EVE transfer before using read data. A detected
+transfer error is preserved when CS is released and prevents further address
+and byte transfers. Close and reopen the host to clear the error.
+
 PlatformIO compiles this host layer together with `eve_layer` and `app_layer`.
 The vendor demo, other host targets, HAL copies and startup files are excluded.
 Display initialization and drawing remain the application's responsibility;

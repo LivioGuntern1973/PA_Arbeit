@@ -100,6 +100,9 @@ Gpu_Hal_StartTransfer (Gpu_Hal_Context_t  *host,
                        GPU_TRANSFERDIR_T   rw,
                        uint32_t            addr)
 {
+  if (host->status == GPU_HAL_STATUS_ERROR)
+    return;
+
   if (GPU_READ == rw)
     {
       uchar8_t transfer[4];
@@ -109,12 +112,12 @@ Gpu_Hal_StartTransfer (Gpu_Hal_Context_t  *host,
       transfer[2] = addr & 0xFF;
       transfer[3] = DUMMY_BYTE;
 
+      host->status = GPU_HAL_READING;
       platform_gpio_value (host, GPIO_CS, GPIO_LOW);
 
       platform_spi_send_data (host, transfer, sizeof(transfer),
                               SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE);
 
-      host->status = GPU_HAL_READING;
     }
   else
     {
@@ -124,12 +127,12 @@ Gpu_Hal_StartTransfer (Gpu_Hal_Context_t  *host,
       transfer[1] = (addr & 0xFF00) >> 8;
       transfer[2] = addr & 0xFF;
 
+      host->status = GPU_HAL_WRITING;
       platform_gpio_value (host, GPIO_CS, GPIO_LOW);
 
       platform_spi_send_data (host, transfer, sizeof(transfer),
                               SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE);
 
-      host->status = GPU_HAL_WRITING;
     }
 }
 
@@ -173,6 +176,9 @@ uint8_t
 Gpu_Hal_Transfer8 (Gpu_Hal_Context_t  *host,
                    uint8_t             value)
 {
+  if (host->status == GPU_HAL_STATUS_ERROR)
+    return 0;
+
   return platform_spi_send_recv_byte (host, value, host->status);
 }
 
@@ -238,7 +244,9 @@ Gpu_Hal_EndTransfer (Gpu_Hal_Context_t *host)
   platform_gpio_value (host, GPIO_CS, GPIO_HIGH);
 #endif
 
-  host->status = GPU_HAL_OPENED;
+  /* Release CS above even on failure, but keep the error visible to the caller. */
+  if (host->status != GPU_HAL_STATUS_ERROR)
+    host->status = GPU_HAL_OPENED;
 }
 
 /*****************************************************************************/

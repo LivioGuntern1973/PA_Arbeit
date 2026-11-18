@@ -26,6 +26,7 @@ Dosierung::Dosierung(const PumpParameters& pump_parameters,
                      const FlowMeterParameters* flowmeter_parameters)
     : pump(pump_parameters.pwm_pin,
            pump_parameters.direction_pin,
+           pump_parameters.enable_pin,
            pump_parameters.error_pin,
            pump_parameters.voltage_min,
            pump_parameters.voltage_max),

@@ -25,6 +25,7 @@
 struct PumpParameters {
     PinName pwm_pin;             ///< Pin for the pump motor's PWM signal.
     PinName direction_pin;       ///< Pin for the pump motor's direction signal.
+    PinName enable_pin;          ///< Pin for the pump driver's enable signal.
     PinName error_pin;           ///< Pin for the pump driver's active-low fault signal.
     float voltage_min = 0.0f;    ///< Minimum motor voltage in volts (default: 0.0f).
     float voltage_max = 24.0f;   ///< Maximum motor voltage in volts (default: 24.0f).

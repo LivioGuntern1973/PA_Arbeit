@@ -51,6 +51,7 @@ public:
      */
     explicit Pump(PinName pwm_pin,
                   PinName direction_pin,
+                  PinName enable_pin,
                   PinName error_pin,
                   float voltage_min = 0.0f,
                   float voltage_max = 24.0f);
@@ -61,6 +62,17 @@ public:
     virtual ~Pump();
 
     /**
+     * @brief Enable the pump.
+     */
+    void enable(void);
+
+    /**
+     * @brief Disable the pump.
+     */
+    void disable(void);
+
+
+    /**
      * @brief Start the pump.
      */
     void start(void);
@@ -69,6 +81,7 @@ public:
      * @brief Stop the pump.
      */
     void stop(void);
+
 
     /**
      * @brief Set the target velocity of the pump.
@@ -147,6 +160,7 @@ private:
     Ticker m_Ticker;
     ThreadFlag m_ThreadFlag;
     DigitalIn m_ErrorPin;
+    DigitalOut m_EnablePin;
 
 
     // signals

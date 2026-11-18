@@ -23,6 +23,7 @@ int main()
     const PumpParameters pump_parameters = {
         milk_pins::MOTOR_PWM[0], 
         milk_pins::MOTOR_DIR, 
+        milk_pins::MOTOR_ENABLE[0],
         milk_pins::MOTOR_ERROR[0],
         voltage_min, 
         voltage_max, 

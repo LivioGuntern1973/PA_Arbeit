@@ -3,10 +3,12 @@
 
 Pump::Pump(PinName pwm_pin,
                    PinName direction_pin,
+                   PinName enable_pin,
                    PinName error_pin,
                    float voltage_min,
                    float voltage_max) : m_motor(pwm_pin, direction_pin, 1.0f, 60.0f, voltage_max, voltage_min/voltage_max),
                                         m_Thread(osPriorityNormal),
+                                        m_EnablePin(enable_pin, 0),
                                         m_ErrorPin(error_pin)
 {
 
@@ -30,6 +32,20 @@ Pump::~Pump()
 {
     m_Ticker.detach();
     m_Thread.terminate();
+}
+
+void Pump::enable(void)
+{
+    if (m_EnablePin != 1) {
+        m_EnablePin.write(1);
+    }
+}
+
+void Pump::disable(void)
+{
+    if (m_EnablePin != 0) {
+        m_EnablePin.write(0);
+    }
 }
 
 void Pump::start(void)

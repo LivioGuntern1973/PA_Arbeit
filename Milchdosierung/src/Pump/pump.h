@@ -11,15 +11,32 @@
  *
  * Usage:
  * To use the Pump class, create an instance with the required motor parameters.
+ * The driver starts disabled. When using Pump directly, call enable() before
+ * start() and keep it enabled until the stop ramp has completed, then call
+ * disable(). Dosierung manages this sequence automatically for its owned pump.
  *
  * Example:
- * ```
- * const float voltage_max = 12.0f; // maximum voltage of battery packs
- * const float voltage_min = 1.4f;  // minimum pwm at slow speed [%]
- * Pump pump1(PB_PWM_M1, PB_DIR_M1, PUMP1_ERROR, voltage_min, voltage_max);
- * enable_motors = 1;
- * pump1.start();
- * ```
+ * @code{.cpp}
+ * #include "Pump/pump.h"
+ * #include "MilkMatePinMap.h"
+ *
+ * int main()
+ * {
+ *     const float voltage_max = 12.0f; // Maximum battery voltage in volts.
+ *     const float voltage_min = 1.4f;  // Minimum motor voltage in volts.
+ *     Pump pump1(milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR,
+ *                milk_pins::MOTOR_ENABLE[0], milk_pins::MOTOR_ERROR[0],
+ *                voltage_min, voltage_max);
+ *     pump1.enable();
+ *     pump1.start();
+ *     thread_sleep_for(1000);
+ *     pump1.stop();
+ *     while (pump1.m_motor.getPWM() != 0.0f) { thread_sleep_for(1); }
+ *     pump1.disable();
+ *
+ *     while (true) { thread_sleep_for(100); }
+ * }
+ * @endcode
  *
  * @author S. Geering
  */
@@ -46,6 +63,9 @@ public:
      * @brief Construct a new Pump object.
      *
      * @param pwm_pin The pin name for PWM control of the motor.
+     * @param direction_pin The pin name for the motor's direction signal.
+     * @param enable_pin The pin name for the driver's active-high enable signal (initially low).
+     * @param error_pin The pin name for the driver's active-low fault signal.
      * @param voltage_min The minimum voltage for the motor (default: 0.0f).
      * @param voltage_max The maximum voltage for the motor (default: 24.0f).
      */
@@ -74,11 +94,17 @@ public:
 
     /**
      * @brief Start the pump.
+     *
+     * Uses the start ramp.
+     * Call enable() before starting the pump.
      */
     void start(void);
 
     /**
      * @brief Stop the pump.
+     *
+     * Uses the stop ramp.
+     * Call disable() after stopping the pump. (when pump stands still)
      */
     void stop(void);
 

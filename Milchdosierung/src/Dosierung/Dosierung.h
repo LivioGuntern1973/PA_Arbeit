@@ -75,9 +75,11 @@ struct FlowMeterParameters {
  * device settings, then pass both to the Dosierung constructor. Configure
  * the public pump and flowmeter objects before starting a command. Configure
  * the pump only while idle and serialize external configuration calls; its
- * public motor and configuration methods do not use the dosing mutex. Enable
- * the motor driver externally and keep the Dosierung object alive while
- * dosing. Use dispenseVolume() for a measured dose, or start() and stop()
+ * public motor and configuration methods do not use the dosing mutex. Pass
+ * the driver's enable pin in PumpParameters::enable_pin; Dosierung enables
+ * the driver before starting and disables it after ramp-down reaches standstill.
+ * Keep the Dosierung object alive while dosing.
+ * Use dispenseVolume() for a measured dose, or start() and stop()
  * for continuous pumping. Use isPumping() to wait until ramp-down and the final
  * volume update have completed. Check getState() separately for device errors.
  * Command and measurement methods are called from thread context.
@@ -94,15 +96,14 @@ struct FlowMeterParameters {
  * int main()
  * {
  *     const PumpParameters pump_parameters = {
- *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR, milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
+ *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR,
+ *         milk_pins::MOTOR_ENABLE[0], milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
  *     };
  *     const FlowMeterParameters flowmeter_parameters = {
  *         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x08
  *     };
  *
- *     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
  *     Dosierung dosing(pump_parameters, flowmeter_parameters);
- *     enable_motor = 1;
  *     dosing.dispenseVolume(600.0f); // Dose 6 dl = 600 ml.
  *     while (dosing.isPumping()) { thread_sleep_for(20); }
  *     printf("Volume: %.1f ml, error: 0x%04x\n", dosing.getActVolume(),
@@ -121,11 +122,10 @@ struct FlowMeterParameters {
  * int main()
  * {
  *     const PumpParameters pump_parameters = {
- *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR, milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
+ *         milk_pins::MOTOR_PWM[0], milk_pins::MOTOR_DIR,
+ *         milk_pins::MOTOR_ENABLE[0], milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
  *     };
- *     DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
  *     Dosierung dosing(pump_parameters);
- *     enable_motor = 1;
  *     dosing.dispenseVolume(600.0f); // Estimate and dose 6 dl = 600 ml.
  *     while (dosing.isPumping()) { thread_sleep_for(20); }
  *     printf("Estimated volume: %.1f ml, error: 0x%04x\n", dosing.getActVolume(),
@@ -141,7 +141,8 @@ public:
     /**
      * @brief Construct a new Dosierung object.
      *
-     * Constructs the public devices and starts the cyclic dosing task in idle.
+     * Constructs the public devices with the pump driver disabled and starts
+     * the cyclic dosing task in idle. Driver enable is managed automatically.
      *
      * @param pump_parameters Pins and voltage limits passed to the Pump constructor.
      * @param flowmeter_parameters Pins, I2C address and clock frequency passed to the FlowMeter constructor.
@@ -154,6 +155,7 @@ public:
      *
      * Estimates flow from motor velocity and the maximum flow rating.
      * No FlowMeter object, I2C connection or sensor task is created.
+     * The pump driver starts disabled; driver enable is managed automatically.
      *
      * @param pump_parameters Pump pins, voltage limits and maximum flow in l/min.
      */
@@ -163,9 +165,9 @@ public:
      * @brief Destroy the Dosierung object.
      *
      * Detaches the ticker, wakes and joins the dosing task, then commands a pump
-     * stop using the minimum braking ramp. Waits for zero PWM before the owned
-     * devices are destroyed. Must be called from another thread, with no other
-     * callers still accessing this object.
+     * stop using the minimum braking ramp. Waits for zero PWM and disables the
+     * pump driver before the owned devices are destroyed. Must be called from
+     * another thread, with no other callers still accessing this object.
      */
     virtual ~Dosierung();
 
@@ -203,7 +205,8 @@ public:
      *
      * Cancels automatic or continuous pumping. Temporarily selects the pump's
      * minimum braking ramp (0.1 s), issues the stop command and restores the
-     * previous ramp setting. Volume measurement continues during ramp-down.
+     * previous ramp setting. Volume measurement continues during ramp-down;
+     * the driver remains enabled until standstill, then is disabled automatically.
      */
     void stop();
 

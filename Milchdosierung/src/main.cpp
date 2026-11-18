@@ -2,6 +2,7 @@
 #include "MilkMatePinMap.h"
 #include "DebounceIn.h"
 #include "Dosierung/Dosierung.h"
+#include "Riverdi-RVT43/Riverdi-RVT43.h"
 
 #include <atomic>
 
@@ -40,40 +41,26 @@ int main()
     uint16_t step_old = 9999;
     main_task_timer.start();
 
+    
+    RiverdiRVT43 display;
+    while (display.getState() == RiverdiRVT43::State::Initializing) {
+    thread_sleep_for(10);
+
     while (true) {
         main_task_timer.reset();
         // Consume each interrupt event once; button presses during dosing are ignored.
         const bool user_button_edge = user_button_pending.exchange(false);
 
-        switch (step) {
-            case 0: // Wait for a new button press.
-                if (user_button_edge) {
-                    step = 1;
-                }
-                break;
-
-            case 1: // Start exactly one automatic dose.
-                dosing.dispenseVolume(target_volume_ml);
-                step = 2;
-                break;
-
-            case 2: // Wait for the operation, including ramp-up and braking, to finish.
-                if (!dosing.isPumping()) {
-                    step = 3;
-                }
-                break;
-
-            case 3: // Pause before accepting the next dose; the final volume is available.
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(
-                        step_duration_timer.elapsed_time()).count() >= 1000) {
-                    step = 0;
-                }
-                break;
-
-            default:
-                step = 0;
-                break;
+        
+        // Display Beispiel
+        if (display.getState() == RiverdiRVT43::State::Ready && display.setText("MilkMate ready")) {
+            while (display.getState() == RiverdiRVT43::State::Ready) {
+                thread_sleep_for(100);
+            }
         }
+        std::printf("Display error\n");
+        return 1;
+        
 
         if (step != step_old) {
             step_duration_timer.reset();

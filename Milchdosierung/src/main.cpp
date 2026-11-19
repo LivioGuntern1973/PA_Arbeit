@@ -34,11 +34,7 @@ int main()
         voltage_max, 
         max_flow_rate
     };
-    Dosierung dosing(pump_parameters, flowmeter_parameters); // No FlowMeter object, sensor task or I2C connection.
-//    Dosierung dosing(pump_parameters); // With FlowMeter object, sensor task and I2C connection.
-#if 1
-    FlowMeter flowmeter(milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10, 100000);
-#endif
+    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
 
     user_button.fall(&on_user_button_pressed);
 
@@ -83,9 +79,9 @@ int main()
                 break;
         }
 
-        float flow = flowmeter.getFlowRate();
-        float volume1 = flowmeter.getTotalizer1();
-        float volume2 = flowmeter.getTotalizer2();
+        float flow = dosing.flowmeter->getFlowRate();
+        float volume1 = dosing.flowmeter->getTotalizer1();
+        float volume2 = dosing.flowmeter->getTotalizer2();
         printf("%f   %f    %f \n\r", flow, volume1, volume2);
 
         if (step != step_old) {

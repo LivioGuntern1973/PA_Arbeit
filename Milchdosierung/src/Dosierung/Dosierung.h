@@ -100,7 +100,7 @@ struct FlowMeterParameters {
  *         milk_pins::MOTOR_ENABLE[0], milk_pins::MOTOR_ERROR[0], 1.4f, 12.0f
  *     };
  *     const FlowMeterParameters flowmeter_parameters = {
- *         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x08
+ *         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10
  *     };
  *
  *     Dosierung dosing(pump_parameters, flowmeter_parameters);

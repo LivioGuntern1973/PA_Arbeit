@@ -18,7 +18,10 @@ int main()
     constexpr float max_flow_rate = 3.6f; // Estimated l/min at voltage_max; calibrate for the pump.
 
     DigitalOut user_led(milk_pins::USER_LED, 0);
-//    DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
+
+    const FlowMeterParameters flowmeter_parameters = {
+        milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10
+    };
 
     const PumpParameters pump_parameters = {
         milk_pins::MOTOR_PWM[0],
@@ -31,8 +34,12 @@ int main()
         voltage_max, 
         max_flow_rate
     };
-    Dosierung dosing(pump_parameters); // No FlowMeter object, sensor task or I2C connection.
- //   enable_motor = 1;
+    Dosierung dosing(pump_parameters, flowmeter_parameters); // No FlowMeter object, sensor task or I2C connection.
+//    Dosierung dosing(pump_parameters); // With FlowMeter object, sensor task and I2C connection.
+#if 1
+    FlowMeter flowmeter(milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10, 100000);
+#endif
+
     user_button.fall(&on_user_button_pressed);
 
     Timer main_task_timer;
@@ -75,6 +82,9 @@ int main()
                 step = 0;
                 break;
         }
+
+        float flow = flowmeter.getFlowRate();
+        printf("%f \n\r", flow);
 
         if (step != step_old) {
             step_duration_timer.reset();

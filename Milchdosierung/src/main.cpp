@@ -18,19 +18,21 @@ int main()
     constexpr float max_flow_rate = 3.6f; // Estimated l/min at voltage_max; calibrate for the pump.
 
     DigitalOut user_led(milk_pins::USER_LED, 0);
-    DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
+//    DigitalOut enable_motor(milk_pins::MOTOR_ENABLE[0], 0);
 
     const PumpParameters pump_parameters = {
-        milk_pins::MOTOR_PWM[0], 
-        milk_pins::MOTOR_DIR, 
-        milk_pins::MOTOR_ENABLE[0],
+        milk_pins::MOTOR_PWM[0],
+//        milk_pins::MOTOR_DIR, // für Test mit Milk-Board
+//        milk_pins::MOTOR_ENABLE[0], // für Test mit Milk-Board
+        PB_14, // DIR-Pin für Test am PES board (einfach unbenutzter Pin)
+        PB_9, // Enable-Pin für Test am PES board
         milk_pins::MOTOR_ERROR[0],
         voltage_min, 
         voltage_max, 
         max_flow_rate
     };
     Dosierung dosing(pump_parameters); // No FlowMeter object, sensor task or I2C connection.
-    enable_motor = 1;
+ //   enable_motor = 1;
     user_button.fall(&on_user_button_pressed);
 
     Timer main_task_timer;

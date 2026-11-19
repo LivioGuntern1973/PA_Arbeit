@@ -81,9 +81,8 @@ int main()
         }
 
         float flow = dosing.flowmeter->getFlowRate();
-        float volume1 = dosing.flowmeter->getTotalizer1();
-        float volume2 = dosing.flowmeter->getTotalizer2();
-        printf("%f   %f    %f \n\r", flow, volume1, volume2);
+        float volume = dosing.flowmeter->getVolumeShortTerm();
+        printf("%f   %f \n\r", flow, volume);
 
         if (step != step_old) {
             step_duration_timer.reset();

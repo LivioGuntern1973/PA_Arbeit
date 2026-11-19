@@ -74,14 +74,14 @@ public:
      *
      * @return The last successfully read volume in milliliters, or 0 before the first successful read.
      */
-    float getTotalizer1() const;
+    float getVolumeLongTerm() const;
 
     /**
      * @brief Get the accumulated short-term volume from Totalizer 2.
      *
      * @return The last successfully read volume in milliliters, or 0 before the first successful read.
      */
-    float getTotalizer2() const;
+    float getVolumeShortTerm() const;
 
     /**
      * @brief Get the physical measured temperature with PT1000.

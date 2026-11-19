@@ -73,13 +73,13 @@ float FlowMeter::getFlowRate() const
     return m_flowRate;
 }
 
-float FlowMeter::getTotalizer1() const
+float FlowMeter::getVolumeLongTerm() const
 {
     ScopedMutexLock lock(m_Mutex);
     return m_VolumeLongTerm;
 }
 
-float FlowMeter::getTotalizer2() const
+float FlowMeter::getVolumeShortTerm() const
 {
     ScopedMutexLock lock(m_Mutex);
     return m_VolumeShortTerm;

@@ -70,6 +70,20 @@ public:
     float getFlowRate() const;
 
     /**
+     * @brief Get the accumulated long-term volume from Totalizer 1.
+     *
+     * @return The last successfully read volume in milliliters, or 0 before the first successful read.
+     */
+    float getTotalizer1() const;
+
+    /**
+     * @brief Get the accumulated short-term volume from Totalizer 2.
+     *
+     * @return The last successfully read volume in milliliters, or 0 before the first successful read.
+     */
+    float getTotalizer2() const;
+
+    /**
      * @brief Get the physical measured temperature with PT1000.
      *
      * @return float The current temperature with PT1000 in °C.

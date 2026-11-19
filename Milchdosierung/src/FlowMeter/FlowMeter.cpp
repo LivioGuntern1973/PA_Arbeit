@@ -73,6 +73,18 @@ float FlowMeter::getFlowRate() const
     return m_flowRate;
 }
 
+float FlowMeter::getTotalizer1() const
+{
+    ScopedMutexLock lock(m_Mutex);
+    return m_VolumeLongTerm;
+}
+
+float FlowMeter::getTotalizer2() const
+{
+    ScopedMutexLock lock(m_Mutex);
+    return m_VolumeShortTerm;
+}
+
 float FlowMeter::getTemperaturePT1000() const
 {
     ScopedMutexLock lock(m_Mutex);

@@ -84,7 +84,9 @@ int main()
         }
 
         float flow = flowmeter.getFlowRate();
-        printf("%f \n\r", flow);
+        float volume1 = flowmeter.getTotalizer1();
+        float volume2 = flowmeter.getTotalizer2();
+        printf("%f   %f    %f \n\r", flow, volume1, volume2);
 
         if (step != step_old) {
             step_duration_timer.reset();

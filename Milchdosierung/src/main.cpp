@@ -12,7 +12,7 @@ void on_user_button_pressed();
 int main()
 {
     constexpr int main_task_period_ms = 20;
-    constexpr float target_volume_ml = 600.0f; // 6 dl = 600 ml.
+    constexpr float target_volume_ml = 300.0f; // ml
     constexpr float voltage_min = 1.4f;
     constexpr float voltage_max = 12.0f;
     constexpr float max_flow_rate = 3.6f; // Estimated l/min at voltage_max; calibrate for the pump.
@@ -35,6 +35,7 @@ int main()
         max_flow_rate
     };
     Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
+    dosing.setVolumeCorrection(0.0f);
 
     user_button.fall(&on_user_button_pressed);
 

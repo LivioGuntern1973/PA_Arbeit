@@ -34,7 +34,8 @@ int main()
         voltage_max, 
         max_flow_rate
     };
-    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
+//    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
+    Dosierung dosing(pump_parameters); // Without FlowMeter object, sensor task and I2C connection.
     dosing.setVolumeCorrection(0.0f);
 
     user_button.fall(&on_user_button_pressed);

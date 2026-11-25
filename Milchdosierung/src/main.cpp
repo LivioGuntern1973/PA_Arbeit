@@ -23,19 +23,19 @@ int main()
         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10
     };
 
+    #define MOTOR_INDEX 1
     const PumpParameters pump_parameters = {
-        milk_pins::MOTOR_PWM[0],
+        milk_pins::MOTOR_PWM[MOTOR_INDEX],
         milk_pins::MOTOR_DIR, // für Test mit Milk-Board
-        milk_pins::MOTOR_ENABLE[0], // für Test mit Milk-Board
+        milk_pins::MOTOR_ENABLE[MOTOR_INDEX], // für Test mit Milk-Board
 //        PB_14, // DIR-Pin für Test am PES board (einfach unbenutzter Pin)
 //        PB_9, // Enable-Pin für Test am PES board
-        milk_pins::MOTOR_ERROR[0],
+        milk_pins::MOTOR_ERROR[MOTOR_INDEX],
         voltage_min, 
         voltage_max, 
         max_flow_rate
     };
-//    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
-    Dosierung dosing(pump_parameters); // Without FlowMeter object, sensor task and I2C connection.
+    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
     dosing.setVolumeCorrection(0.0f);
 
     user_button.fall(&on_user_button_pressed);

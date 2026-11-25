@@ -39,7 +39,7 @@ int main()
     );
 
     pump1.enable();
-    thread_sleep_for(20);
+ //   thread_sleep_for(20);
     pump1.start();
     thread_sleep_for(5000);
     pump1.stop();

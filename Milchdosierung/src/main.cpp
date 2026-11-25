@@ -13,30 +13,9 @@ int main()
 {
     constexpr int main_task_period_ms = 20;
     constexpr float target_volume_ml = 300.0f; // ml
-    constexpr float voltage_min = 1.4f;
-    constexpr float voltage_max = 12.0f;
     constexpr float max_flow_rate = 3.6f; // Estimated l/min at voltage_max; calibrate for the pump.
 
     DigitalOut user_led(milk_pins::USER_LED, 0);
-
-    const FlowMeterParameters flowmeter_parameters = {
-        milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10
-    };
-
-    const PumpParameters pump_parameters = {
-        milk_pins::MOTOR_PWM[0],
-        milk_pins::MOTOR_DIR, // für Test mit Milk-Board
-        milk_pins::MOTOR_ENABLE[0], // für Test mit Milk-Board
-//        PB_14, // DIR-Pin für Test am PES board (einfach unbenutzter Pin)
-//        PB_9, // Enable-Pin für Test am PES board
-        milk_pins::MOTOR_ERROR[0],
-        voltage_min, 
-        voltage_max, 
-        max_flow_rate
-    };
-//    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
-    Dosierung dosing(pump_parameters); // Without FlowMeter object, sensor task and I2C connection.
-    dosing.setVolumeCorrection(0.0f);
 
     user_button.fall(&on_user_button_pressed);
 
@@ -46,6 +25,27 @@ int main()
     uint16_t step_old = 9999;
     main_task_timer.start();
 
+
+    const float voltage_max = 12.0f; // Maximum battery voltage in volts.
+    const float voltage_min = 1.4f;  // Minimum motor voltage in volts.
+    Pump pump1(
+        milk_pins::MOTOR_PWM[0], 
+        milk_pins::MOTOR_DIR,
+        milk_pins::MOTOR_ENABLE[0], 
+        milk_pins::MOTOR_ERROR[0],
+        voltage_min, voltage_max
+    );
+
+    pump1.enable();
+    thread_sleep_for(20);
+    pump1.start();
+    thread_sleep_for(5000);
+    pump1.stop();
+    while (pump1.m_motor.getPWM() != 0.0f) { thread_sleep_for(1); }
+    pump1.disable();
+ 
+    return 0;
+/*
     while (true) {
         main_task_timer.reset();
         // Consume each interrupt event once; button presses during dosing are ignored.
@@ -58,18 +58,18 @@ int main()
                 }
                 break;
 
-            case 1: // Start exactly one automatic dose.
+            case 1:
                 dosing.dispenseVolume(target_volume_ml);
                 step = 2;
                 break;
 
-            case 2: // Wait for the operation, including ramp-up and braking, to finish.
+            case 2:
                 if (!dosing.isPumping()) {
                     step = 3;
                 }
                 break;
 
-            case 3: // Pause before accepting the next dose; the final volume is available.
+            case 3:
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(
                         step_duration_timer.elapsed_time()).count() >= 1000) {
                     step = 0;
@@ -98,6 +98,7 @@ int main()
             thread_sleep_for(main_task_period_ms - elapsed_ms);
         }
     }
+*/
 }
 
 void on_user_button_pressed()

@@ -5,6 +5,8 @@
 
 #include <atomic>
 
+#define WITH_FLOWMETER 0
+
 std::atomic<bool> user_button_pending{false};
 DebounceIn user_button(milk_pins::USER_BUTTON);
 void on_user_button_pressed();
@@ -35,7 +37,12 @@ int main()
         voltage_max, 
         max_flow_rate
     };
-    Dosierung dosing(pump_parameters, flowmeter_parameters); // With FlowMeter object, sensor task and I2C connection.
+    Dosierung dosing(
+        pump_parameters
+        #if WITH_FLOWMETER
+        , flowmeter_parameters
+        #endif
+    );
     dosing.setVolumeCorrection(0.0f);
 
     user_button.fall(&on_user_button_pressed);
@@ -81,9 +88,11 @@ int main()
                 break;
         }
 
+#if WITH_FLOWMETER
         float flow = dosing.flowmeter->getFlowRate();
         float volume = dosing.flowmeter->getVolumeShortTerm();
         printf("%f   %f \n\r", flow, volume);
+#endif
 
         if (step != step_old) {
             step_duration_timer.reset();

@@ -26,14 +26,16 @@ int main()
     main_task_timer.start();
 
 
-    const float voltage_max = 12.0f; // Maximum battery voltage in volts.
+    const float voltage_max = 24.0f; // Maximum battery voltage in volts.
     const float voltage_min = 1.4f;  // Minimum motor voltage in volts.
+    #define motor_index 1
     Pump pump1(
-        milk_pins::MOTOR_PWM[0], 
+        milk_pins::MOTOR_PWM[motor_index], 
         milk_pins::MOTOR_DIR,
-        milk_pins::MOTOR_ENABLE[0], 
-        milk_pins::MOTOR_ERROR[0],
-        voltage_min, voltage_max
+        milk_pins::MOTOR_ENABLE[motor_index], 
+        milk_pins::MOTOR_ERROR[motor_index],
+        voltage_min, 
+        voltage_max
     );
 
     pump1.enable();

@@ -101,9 +101,14 @@ float Pump::getVoltageMin() const
 }
 
 
+void Pump::ignoreError()
+{
+    m_ignoreError = 1;
+}
+
 uint16_t Pump::getError(void)
 {
-    if (m_ErrorPin == 0)
+    if (m_ErrorPin == 0 && m_ignoreError == 0)
     {
         return 1;
     }

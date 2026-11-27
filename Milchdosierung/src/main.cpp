@@ -53,6 +53,8 @@ int main()
     uint16_t step_old = 9999;
     main_task_timer.start();
 
+    dosing.pump.ignoreError();
+
     while (true) {
         main_task_timer.reset();
         // Consume each interrupt event once; button presses during dosing are ignored.

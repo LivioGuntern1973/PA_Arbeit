@@ -166,10 +166,15 @@ public:
     float getVoltageMin() const;
 
     /**
+     * @brief Ignore the motor driver's fault pin for this instance.
+     */
+    void ignoreError();
+
+    /**
      * @brief Check for errors.
      *
      * @return uint16_t The current error code.
-     *                  0: no error
+     *                  0: no error or fault pin ignored
      *                  1: hardware fault (supply undervoltage, charge pump undervoltage, output overcurrent, or device overtemperature)
      */
     uint16_t getError(void);
@@ -194,6 +199,7 @@ private:
     float m_rampTimeStart;
     float m_rampTimeStop;
     float m_voltageMin;
+    bool m_ignoreError = 0;
 
     void threadTask();
     void sendThreadFlag();

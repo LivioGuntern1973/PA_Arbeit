@@ -25,6 +25,14 @@ int main()
         milk_pins::FLOW_SDA, milk_pins::FLOW_SCL, 0x10
     };
 
+    // Flowmeter für Test
+    FlowMeter flowmeter(
+        flowmeter_parameters.i2c_sda_pin, 
+        flowmeter_parameters.i2c_scl_pin,
+        flowmeter_parameters.i2c_address, 
+        flowmeter_parameters.i2c_baudrate
+    );
+
     #define MOTOR_INDEX 1
     const PumpParameters pump_parameters = {
         milk_pins::MOTOR_PWM[MOTOR_INDEX],
@@ -89,6 +97,12 @@ int main()
                 step = 0;
                 break;
         }
+
+
+        float flow = flowmeter.getFlowRate();
+        float volume1 = flowmeter.getVolumeShortTerm();
+        float volume2 = flowmeter.getVolumeLongTerm();
+        printf("%f   %f   %f\n\r", flow, volume1, volume2);
 
 #if WITH_FLOWMETER
         float flow = dosing.flowmeter->getFlowRate();
